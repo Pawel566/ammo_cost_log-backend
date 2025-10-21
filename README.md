@@ -30,6 +30,7 @@ Pozwala dodawać broń, amunicję oraz sesje strzeleckie z automatycznym liczeni
 
 ## 🧩 Struktura projektu
 
+```plaintext 
 ammo_cost_log-backend/
 │
 ├── .gitignore
@@ -45,6 +46,8 @@ ammo_cost_log-backend/
 │   ├── guns.py
 │   ├── ammo.py
 │   └── sessions.py
+
+```
 
 ---
 
