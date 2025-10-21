@@ -1,7 +1,7 @@
-from sqlmodel import SQLModel, Field
+from sqlmodel import SQLModel, Field, Relationship
 from typing import Optional
 from datetime import date
-from decimal import Decimal
+
 
 class GunBase(SQLModel):
     name: str
@@ -13,16 +13,16 @@ class GunBase(SQLModel):
 class AmmoBase(SQLModel):
     name: str
     caliber: Optional[str] = None
-    price_per_unit: Decimal
+    price_per_unit: float
     units_in_package: Optional[int] = None
 
 
 class SessionBase(SQLModel):
-    gun_id: int
-    ammo_id: int
+    gun_id: int = Field(foreign_key="gun.id")
+    ammo_id: int = Field(foreign_key="ammo.id")
     date: date
     shots: int
-    cost: Decimal
+    cost: float
     notes: Optional[str] = None
 
 
