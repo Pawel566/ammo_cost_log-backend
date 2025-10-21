@@ -5,14 +5,14 @@ from decimal import Decimal
 
 class GunBase(SQLModel):
     name: str
-    caliber: Optional[Decimal] = None
+    caliber: Optional[str] = None
     notes: Optional[str] = None
 
 
 
 class AmmoBase(SQLModel):
     name: str
-    caliber: Optional[Decimal] = None
+    caliber: Optional[str] = None
     price_per_unit: Decimal
     units_in_package: Optional[int] = None
 
