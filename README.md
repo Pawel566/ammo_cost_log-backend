@@ -32,26 +32,31 @@ Pozwala dodawać broń, amunicję oraz sesje strzeleckie z automatycznym liczeni
 
 ammo_cost_log-backend/
 │
+├── .gitignore
+├── README.md
+├── requirements.txt
+│
 ├── main.py
 ├── database.py
 ├── models.py
 │
 ├── routers/
-│ ├── guns.py
-│ ├── ammo.py
-│ └── sessions.py
-│
-├── requirements.txt
-├── .gitignore
-└── README.md
+│   ├── __init__.py
+│   ├── guns.py
+│   ├── ammo.py
+│   └── sessions.py
 
-
+---
 
 ## Instalacja zależności
 pip install -r requirements.txt
 
+---
+
 ## Uruchomienie serwera FastAPI
 uvicorn main:app --reload
+
+---
 
 
 ## Wersja 0.1
