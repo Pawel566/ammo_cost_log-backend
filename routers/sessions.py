@@ -3,6 +3,7 @@ from sqlmodel import Session, select
 from models import Session as ShootingSession, Ammo, Gun, SessionBase
 from database import engine
 from datetime import date,datetime
+from collections import defaultdict
 
 router = APIRouter()
 
@@ -31,15 +32,27 @@ def add_session(session_data: SessionBase):
         if not ammo:
             raise HTTPException(status_code=404, detail="Ammo not found")
 
+        if ammo.units_in_package is None:
+            raise HTTPException(status_code=400, detail="Ammo quantity not set")
+        if ammo.units_in_package < session_data.shots:
+            raise HTTPException(status_code=400, detail=f"Not enough ammo. Only {ammo.units_in_package} left.")
+
+        ammo.units_in_package -= session_data.shots
 
         session_data.cost = session_data.shots * ammo.price_per_unit
 
-        db.add(session_data)
+        new_session = ShootingSession.from_orm(session_data)
+        db.add(new_session)
+        db.add(ammo)
         db.commit()
-        db.refresh(session_data)
-        return session_data
+        db.refresh(new_session)
 
-from collections import defaultdict
+        return {
+            "session": new_session,
+            "remaining_ammo": ammo.units_in_package
+        }
+
+
 
 @router.get("/summary")
 def get_monthly_summary():
