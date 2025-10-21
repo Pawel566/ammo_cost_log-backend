@@ -41,7 +41,7 @@ def add_session(session_data: SessionBase):
 
         session_data.cost = session_data.shots * ammo.price_per_unit
 
-        new_session = ShootingSession.from_orm(session_data)
+        new_session = ShootingSession.model_validate(session_data)
         db.add(new_session)
         db.add(ammo)
         db.commit()

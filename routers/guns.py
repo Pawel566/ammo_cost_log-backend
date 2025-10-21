@@ -13,7 +13,7 @@ def get_guns():
 
 @router.post("/")
 def add_gun(gun_data: GunBase):
-    gun = Gun.from_orm(gun_data)
+    gun = Gun.model_validate(gun_data)
     with Session(engine) as session:
         session.add(gun)
         session.commit()

@@ -16,7 +16,7 @@ def add_ammo(ammo_data: AmmoBase):
     if ammo_data.price_per_unit < 0:
         raise HTTPException(status_code=400, detail="Price per unit must be >= 0")
 
-    ammo = Ammo.from_orm(ammo_data)
+    ammo = Ammo.model_validate(ammo_data)
     with Session(engine) as session:
         session.add(ammo)
         session.commit()

@@ -211,5 +211,5 @@ __marimo__/
 *.pyo
 .venv/
 *.db
-.env
 database.py
+venv
