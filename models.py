@@ -6,6 +6,7 @@ from decimal import Decimal
 class GunBase(SQLModel):
     name: str
     notes: Optional[str] = None
+    caliber: Optional[str] = None
 
 
 class AmmoBase(SQLModel):

@@ -56,18 +56,26 @@ def add_session(session_data: SessionBase):
 
 @router.get("/summary")
 def get_monthly_summary():
-
     with Session(engine) as db:
         sessions = db.exec(select(ShootingSession)).all()
 
         if not sessions:
             return []
 
-        summary = defaultdict(float)
+        cost_summary = defaultdict(float)
+        shot_summary = defaultdict(int)
 
         for s in sessions:
             month_key = s.date.strftime("%Y-%m")
-            summary[month_key] += float(s.cost)
+            cost_summary[month_key] += float(s.cost)
+            shot_summary[month_key] += s.shots
 
-        result = [{"month": k, "total_cost": round(v, 2)} for k, v in sorted(summary.items())]
+        result = [
+            {
+                "month": month,
+                "total_cost": round(cost_summary[month], 2),
+                "total_shots": shot_summary[month]
+            }
+            for month in sorted(cost_summary.keys())
+        ]
         return result
