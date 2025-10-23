@@ -213,3 +213,6 @@ __marimo__/
 *.db
 database.py
 venv
+
+# AI Assistant instructions
+AGENTS.md

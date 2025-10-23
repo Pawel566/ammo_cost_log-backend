@@ -6,7 +6,7 @@ Aplikacja do śledzenia kosztów i celności strzeleckich.
 - Zarządzanie bronią i amunicją
 - Rejestrowanie sesji kosztowych i celnościowych
 - Automatyczne obliczanie kosztów i celności
-- AI komentarze do sesji celnościowych
+- AI komentarze do sesji celnościowych (wymaga klucza API użytkownika)
 - Statystyki miesięczne
 
 ## Technologie
@@ -28,6 +28,8 @@ python -m uvicorn main:app --reload --host 0.0.0.0 --port 8000
 ```
 
 API będzie dostępne na: http://localhost:8000
+
+**Uwaga**: AI komentarze wymagają klucza API OpenAI od użytkownika.
 
 ## Endpointy
 - `GET /guns/` - lista broni
