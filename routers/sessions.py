@@ -26,6 +26,7 @@ class CostSessionInput(BaseModel):
     ammo_id: int = Field(description="ID amunicji")
     date: Optional[str] = Field(default=None, description="Data w formacie YYYY-MM-DD")
     shots: int = Field(gt=0, description="Liczba strzałów")
+    openai_api_key: Optional[str] = Field(default=None, description="Klucz API OpenAI")
 
 class AccuracySessionInput(BaseModel):
     gun_id: int = Field(description="ID broni")
@@ -34,6 +35,7 @@ class AccuracySessionInput(BaseModel):
     distance_m: int = Field(gt=0, description="Dystans w metrach")
     shots: int = Field(gt=0, description="Liczba strzałów")
     hits: int = Field(ge=0, description="Liczba trafień")
+    openai_api_key: Optional[str] = Field(default=None, description="Klucz API OpenAI")
 
 class MonthlySummary(BaseModel):
     month: str
@@ -108,13 +110,20 @@ def _validate_session_data(gun: Gun, ammo: Ammo, shots: int, hits: Optional[int]
             detail="Liczba trafień musi być między 0 a całkowitą liczbą strzałów"
         )
 
-def _generate_ai_comment(gun: Gun, distance: int, hits: int, shots: int, accuracy: float) -> str:
+def _generate_ai_comment(gun: Gun, distance: int, hits: int, shots: int, accuracy: float, api_key: Optional[str] = None) -> str:
     """Generuje komentarz AI dla sesji celnościowej"""
     logger.info(f"Generowanie komentarza AI dla {gun.name}, celność: {accuracy}%")
     
-    if not client:
-        logger.warning("Klient OpenAI nie jest dostępny")
-        return "Brak klucza API — użyj pliku .env z OPENAI_API_KEY."
+    # Wymagaj klucza API od użytkownika
+    if not api_key:
+        logger.warning("Brak klucza API OpenAI od użytkownika")
+        return "Brak klucza API OpenAI — dodaj klucz w formularzu aby otrzymać komentarz AI."
+    
+    try:
+        client_with_key = OpenAI(api_key=api_key)
+    except Exception as e:
+        logger.error(f"Błąd inicjalizacji klienta OpenAI z podanym kluczem: {e}")
+        return f"Nieprawidłowy klucz API OpenAI: {e}"
     
     try:
         prompt = (
@@ -132,7 +141,7 @@ def _generate_ai_comment(gun: Gun, distance: int, hits: int, shots: int, accurac
 
         logger.info(f"Wysyłanie zapytania do OpenAI: {prompt[:100]}...")
         
-        response = client.chat.completions.create(
+        response = client_with_key.chat.completions.create(
             model="gpt-5-mini",
             messages=messages
         )
@@ -201,7 +210,7 @@ def add_accuracy_session(data: AccuracySessionInput, session: Session = Depends(
     ammo.units_in_package -= data.shots
     accuracy = round((data.hits / data.shots) * 100, 2)
     
-    ai_comment = _generate_ai_comment(gun, data.distance_m, data.hits, data.shots, accuracy)
+    ai_comment = _generate_ai_comment(gun, data.distance_m, data.hits, data.shots, accuracy, data.openai_api_key)
     
     cost_session = ShootingSession(
         gun_id=data.gun_id,
