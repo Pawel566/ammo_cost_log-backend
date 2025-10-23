@@ -1,4 +1,5 @@
 from fastapi import APIRouter, HTTPException
+from pydantic import BaseModel
 from sqlmodel import Session, select
 from models import Ammo, AmmoBase
 from database import engine
@@ -32,3 +33,26 @@ def delete_ammo(ammo_id: int):
         session.delete(ammo)
         session.commit()
         return {"deleted": ammo_id}
+
+
+class QuantityPayload(BaseModel):
+    amount: int
+
+
+@router.post("/{ammo_id}/add")
+def add_ammo_quantity(ammo_id: int, payload: QuantityPayload):
+    if payload.amount <= 0:
+        raise HTTPException(status_code=400, detail="Amount must be > 0")
+
+    with Session(engine) as session:
+        ammo = session.get(Ammo, ammo_id)
+        if not ammo:
+            raise HTTPException(status_code=404, detail="Ammo not found")
+
+        current = ammo.units_in_package or 0
+        ammo.units_in_package = current + payload.amount
+
+        session.add(ammo)
+        session.commit()
+        session.refresh(ammo)
+        return ammo
