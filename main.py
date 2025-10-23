@@ -3,25 +3,32 @@ from fastapi.middleware.cors import CORSMiddleware
 from database import init_db
 from routers import guns, ammo, sessions
 
-app = FastAPI(title="Ammo Cost Log API", version="0.1")
+app = FastAPI(
+    title="Ammo Cost Log API", 
+    version="0.1.0",
+    description="API do zarządzania kosztami amunicji i sesjami strzeleckimi"
+)
 
-# Configure CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000", "http://127.0.0.1:3000", "http://localhost:3002", "http://127.0.0.1:3002", "http://localhost:3004", "http://127.0.0.1:3004"],
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
 @app.on_event("startup")
-def on_startup():
+def startup_event():
     init_db()
 
-app.include_router(guns.router, prefix="/guns", tags=["Guns"])
-app.include_router(ammo.router, prefix="/ammo", tags=["Ammo"])
-app.include_router(sessions.router, prefix="/sessions", tags=["Sessions"])
+app.include_router(guns.router, prefix="/api/guns", tags=["Broń"])
+app.include_router(ammo.router, prefix="/api/ammo", tags=["Amunicja"])
+app.include_router(sessions.router, prefix="/api/sessions", tags=["Sesje"])
 
 @app.get("/")
 def root():
-    return {"message": "Ammo Cost Log"}
+    return {"message": "Ammo Cost Log API", "version": "0.1.0"}
+
+@app.get("/health")
+def health_check():
+    return {"status": "healthy"}

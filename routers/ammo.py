@@ -1,58 +1,76 @@
-from fastapi import APIRouter, HTTPException
-from pydantic import BaseModel
+from fastapi import APIRouter, HTTPException, Depends
 from sqlmodel import Session, select
-from models import Ammo, AmmoBase
-from database import engine
+from typing import List
+from pydantic import BaseModel, Field
+from models import Ammo, AmmoCreate, AmmoRead, AmmoUpdate
+from database import get_session
 
 router = APIRouter()
 
-@router.get("/")
-def get_ammo():
-    with Session(engine) as session:
-        ammo_list = session.exec(select(Ammo)).all()
-        return ammo_list
+class QuantityPayload(BaseModel):
+    amount: int = Field(gt=0, description="Ilość do dodania")
 
-@router.post("/")
-def add_ammo(ammo_data: AmmoBase):
-    if ammo_data.price_per_unit < 0:
-        raise HTTPException(status_code=400, detail="Price per unit must be >= 0")
+@router.get("/", response_model=List[AmmoRead])
+def get_ammo(session: Session = Depends(get_session)):
+    """Pobiera listę wszystkich amunicji"""
+    ammo_list = session.exec(select(Ammo)).all()
+    return ammo_list
 
+@router.get("/{ammo_id}", response_model=AmmoRead)
+def get_ammo_by_id(ammo_id: int, session: Session = Depends(get_session)):
+    """Pobiera konkretną amunicję po ID"""
+    ammo = session.get(Ammo, ammo_id)
+    if not ammo:
+        raise HTTPException(status_code=404, detail="Amunicja nie została znaleziona")
+    return ammo
+
+@router.post("/", response_model=AmmoRead)
+def add_ammo(ammo_data: AmmoCreate, session: Session = Depends(get_session)):
+    """Dodaje nową amunicję"""
     ammo = Ammo.model_validate(ammo_data)
-    with Session(engine) as session:
-        session.add(ammo)
-        session.commit()
-        session.refresh(ammo)
-        return ammo
+    session.add(ammo)
+    session.commit()
+    session.refresh(ammo)
+    return ammo
+
+@router.put("/{ammo_id}", response_model=AmmoRead)
+def update_ammo(ammo_id: int, ammo_data: AmmoUpdate, session: Session = Depends(get_session)):
+    """Aktualizuje istniejącą amunicję"""
+    ammo = session.get(Ammo, ammo_id)
+    if not ammo:
+        raise HTTPException(status_code=404, detail="Amunicja nie została znaleziona")
+    
+    ammo_dict = ammo_data.model_dump(exclude_unset=True)
+    for key, value in ammo_dict.items():
+        setattr(ammo, key, value)
+    
+    session.add(ammo)
+    session.commit()
+    session.refresh(ammo)
+    return ammo
 
 @router.delete("/{ammo_id}")
-def delete_ammo(ammo_id: int):
-    with Session(engine) as session:
-        ammo = session.get(Ammo, ammo_id)
-        if not ammo:
-            raise HTTPException(status_code=404, detail="Ammo not found")
-        session.delete(ammo)
-        session.commit()
-        return {"deleted": ammo_id}
+def delete_ammo(ammo_id: int, session: Session = Depends(get_session)):
+    """Usuwa amunicję"""
+    ammo = session.get(Ammo, ammo_id)
+    if not ammo:
+        raise HTTPException(status_code=404, detail="Amunicja nie została znaleziona")
+    
+    session.delete(ammo)
+    session.commit()
+    return {"message": f"Amunicja o ID {ammo_id} została usunięta"}
 
+@router.post("/{ammo_id}/add", response_model=AmmoRead)
+def add_ammo_quantity(ammo_id: int, payload: QuantityPayload, session: Session = Depends(get_session)):
+    """Dodaje ilość do istniejącej amunicji"""
+    ammo = session.get(Ammo, ammo_id)
+    if not ammo:
+        raise HTTPException(status_code=404, detail="Amunicja nie została znaleziona")
 
-class QuantityPayload(BaseModel):
-    amount: int
+    current = ammo.units_in_package or 0
+    ammo.units_in_package = current + payload.amount
 
-
-@router.post("/{ammo_id}/add")
-def add_ammo_quantity(ammo_id: int, payload: QuantityPayload):
-    if payload.amount <= 0:
-        raise HTTPException(status_code=400, detail="Amount must be > 0")
-
-    with Session(engine) as session:
-        ammo = session.get(Ammo, ammo_id)
-        if not ammo:
-            raise HTTPException(status_code=404, detail="Ammo not found")
-
-        current = ammo.units_in_package or 0
-        ammo.units_in_package = current + payload.amount
-
-        session.add(ammo)
-        session.commit()
-        session.refresh(ammo)
-        return ammo
+    session.add(ammo)
+    session.commit()
+    session.refresh(ammo)
+    return ammo
