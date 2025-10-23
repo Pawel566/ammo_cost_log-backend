@@ -36,3 +36,15 @@ class Ammo(AmmoBase, table=True):
 
 class Session(SessionBase, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
+
+
+class AccuracySession(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    gun_id: int = Field(foreign_key="gun.id")
+    ammo_id: int = Field(foreign_key="ammo.id")
+    date: date
+    distance_m: int
+    hits: int
+    shots: int
+    accuracy_percent: Optional[float] = None
+    ai_comment: Optional[str] = None

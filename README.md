@@ -1,73 +1,42 @@
-# 🎯 Ammo Cost Log API
+# Ammo Cost Log - Backend
 
-Aplikacja backendowa do śledzenia kosztów strzelania — stworzona w Python + FastAPI.  
-Pozwala dodawać broń, amunicję oraz sesje strzeleckie z automatycznym liczeniem kosztów i podsumowaniem miesięcznym.
+Aplikacja do śledzenia kosztów i celności strzeleckich.
 
----
+## Co robi
+- Zarządzanie bronią i amunicją
+- Rejestrowanie sesji kosztowych i celnościowych
+- Automatyczne obliczanie kosztów i celności
+- AI komentarze do sesji celnościowych
+- Statystyki miesięczne
 
-## 🧱 Stack technologiczny
+## Technologie
+- **FastAPI** - API framework
+- **SQLModel** - ORM i walidacja danych
+- **SQLite** - baza danych
+- **OpenAI API** - komentarze AI
 
-| Warstwa | Technologia | Opis |
-|----------|--------------|------|
-| Backend | **Python + FastAPI** | główny framework aplikacji |
-| ORM | **SQLModel** | modele danych i relacje |
-| Baza danych | **SQLite / PostgreSQL (Supabase)** | lokalnie SQLite, na produkcji PostgreSQL |
-| Deployment | **Render** | darmowy hosting backendu |
-| Zarządzanie środowiskiem | `.env` + **python-dotenv** | dane konfiguracyjne i zmienne środowiskowe |
+## Jak uruchomić
 
----
-
-## 🚀 Funkcjonalności
-
-- dodawanie / usuwanie broni (`/guns`)
-- dodawanie / usuwanie amunicji (`/ammo`)
-- rejestrowanie sesji strzeleckich (`/sessions`)
-  - automatyczne liczenie kosztu (`shots × price_per_unit`)
-  - walidacja daty i liczby strzałów
-- podsumowanie kosztów miesięcznych (`/sessions/summary`)
-
----
-
-## 🧩 Struktura projektu
-
-```plaintext 
-ammo_cost_log-backend/
-│
-├── .gitignore
-├── README.md
-├── requirements.txt
-│
-├── main.py
-├── database.py
-├── models.py
-│
-├── routers/
-│   ├── __init__.py
-│   ├── guns.py
-│   ├── ammo.py
-│   └── sessions.py
-
+1. Zainstaluj zależności:
+```bash
+pip install -r requirements.txt
 ```
 
----
+2. Uruchom serwer:
+```bash
+python -m uvicorn main:app --reload --host 0.0.0.0 --port 8000
+```
 
-## Instalacja zależności
-pip install -r requirements.txt
+API będzie dostępne na: http://localhost:8000
 
----
+## Endpointy
+- `GET /guns/` - lista broni
+- `GET /ammo/` - lista amunicji  
+- `POST /sessions/cost` - dodaj sesję kosztową
+- `POST /sessions/accuracy` - dodaj sesję celnościową
+- `GET /sessions/summary` - statystyki miesięczne
 
-## Uruchomienie serwera FastAPI
-uvicorn main:app --reload
-
----
-
-
-## Wersja 0.1
-
-CRUD dla broni, amunicji i sesji
-
-automatyczne liczenie kosztów
-
-walidacja danych wejściowych
-
-miesięczne podsumowanie kosztów
+## Plany na przyszłość
+- **Konta użytkowników** - logowanie i rejestracja, każdy użytkownik ma dostęp tylko do swoich danych
+- **Poziomy zaawansowania** - wybór poziomu (Początkujący, Średniozaawansowany, Zaawansowany)
+- **Inteligentne AI** - model AI dostosowuje rygorystyczność oceny do poziomu doświadczenia użytkownika
