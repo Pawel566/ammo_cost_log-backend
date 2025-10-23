@@ -110,7 +110,10 @@ def _validate_session_data(gun: Gun, ammo: Ammo, shots: int, hits: Optional[int]
 
 def _generate_ai_comment(gun: Gun, distance: int, hits: int, shots: int, accuracy: float) -> str:
     """Generuje komentarz AI dla sesji celnościowej"""
+    logger.info(f"Generowanie komentarza AI dla {gun.name}, celność: {accuracy}%")
+    
     if not client:
+        logger.warning("Klient OpenAI nie jest dostępny")
         return "Brak klucza API — użyj pliku .env z OPENAI_API_KEY."
     
     try:
@@ -123,15 +126,21 @@ def _generate_ai_comment(gun: Gun, distance: int, hits: int, shots: int, accurac
             f"Napisz krótki komentarz po polsku — maks 2 zdania z oceną i sugestią poprawy."
         )
 
+        messages = []
+        messages.append({"role": "system", "content": "Jesteś instruktorem strzelectwa."})
+        messages.append({"role": "user", "content": prompt})
+
+        logger.info(f"Wysyłanie zapytania do OpenAI: {prompt[:100]}...")
+        
         response = client.chat.completions.create(
-            model="gpt-4o-mini",
-            messages=[
-                {"role": "system", "content": "Jesteś instruktorem strzelectwa."},
-                {"role": "user", "content": prompt}
-            ],
-            max_tokens=80
+            model="gpt-5-mini",
+            messages=messages
         )
-        return response.choices[0].message.content.strip()
+        
+        result = response.choices[0].message.content.strip()
+        logger.info(f"Otrzymano odpowiedź AI: {result}")
+        return result
+        
     except Exception as e:
         logger.error(f"Błąd podczas generowania komentarza AI: {e}")
         return f"Błąd AI: {e}"
