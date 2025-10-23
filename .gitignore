@@ -211,7 +211,6 @@ __marimo__/
 *.pyo
 .venv/
 *.db
-database.py
 venv
 
 # AI Assistant instructions

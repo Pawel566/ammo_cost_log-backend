@@ -1,0 +1,11 @@
+services:
+  - type: web
+    name: ammo-cost-log-backend
+    env: python
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: python -m uvicorn main:app --host 0.0.0.0 --port $PORT
+    rootDir: ammo_cost_log-backend
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11
