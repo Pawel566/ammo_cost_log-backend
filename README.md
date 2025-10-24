@@ -1,13 +1,15 @@
 # Ammo Cost Log - Backend
 
-Aplikacja do śledzenia kosztów i celności strzeleckich.
+Aplikacja do kompleksowego zarządzania strzelectwem sportowym i rekreacyjnym. Umożliwia śledzenie kosztów, analizę celności i zarządzanie sprzętem strzeleckim z inteligentnym asystentem AI.
 
-## Co robi
-- Zarządzanie bronią i amunicją
-- Rejestrowanie sesji kosztowych i celnościowych
-- Automatyczne obliczanie kosztów i celności
-- AI komentarze do sesji celnościowych (wymaga klucza API użytkownika)
-- Statystyki miesięczne
+## Cel aplikacji
+Aplikacja służy do kompleksowego zarządzania strzelectwem sportowym i rekreacyjnym:
+
+- **Zarządzanie sprzętem** - katalog broni i amunicji z cenami
+- **Śledzenie kosztów** - rejestrowanie sesji strzeleckich z automatycznym obliczaniem wydatków
+- **Analiza celności** - pomiar i ocena wyników strzeleckich
+- **AI asystent** - inteligentne komentarze do sesji celnościowych (wymaga klucza API użytkownika)
+- **Statystyki** - miesięczne podsumowania kosztów i postępów
 
 ## Technologie
 - **FastAPI** - API framework
@@ -39,6 +41,7 @@ API będzie dostępne na: http://localhost:8000
 - `GET /sessions/summary` - statystyki miesięczne
 
 ## Plany na przyszłość
+- **Migracja do Supabase** - przejście z SQLite na Supabase 
 - **Konta użytkowników** - logowanie i rejestracja, każdy użytkownik ma dostęp tylko do swoich danych
 - **Poziomy zaawansowania** - wybór poziomu (Początkujący, Średniozaawansowany, Zaawansowany)
 - **Inteligentne AI** - model AI dostosowuje rygorystyczność oceny do poziomu doświadczenia użytkownika
