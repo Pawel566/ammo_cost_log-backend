@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from database import init_db
-from routers import guns, ammo, sessions
+from routers import guns, ammo, sessions, auth
 
 app = FastAPI(
     title="Ammo Cost Log API", 
@@ -24,6 +24,7 @@ def startup_event():
 app.include_router(guns.router, prefix="/api/guns", tags=["Broń"])
 app.include_router(ammo.router, prefix="/api/ammo", tags=["Amunicja"])
 app.include_router(sessions.router, prefix="/api/sessions", tags=["Sesje"])
+app.include_router(auth.router, prefix="/api", tags=["Uwierzytelnianie"])
 
 @app.get("/")
 def root():

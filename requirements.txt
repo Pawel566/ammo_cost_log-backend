@@ -5,3 +5,4 @@ python-dotenv==1.1.1
 requests==2.32.5
 openai==2.6.0
 pydantic==2.12.3
+supabase==2.8.0

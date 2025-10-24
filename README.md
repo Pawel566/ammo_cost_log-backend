@@ -1,47 +1,51 @@
-# Ammo Cost Log - Backend
+# 🎯 Ammo Cost Log - Backend
 
-Aplikacja do kompleksowego zarządzania strzelectwem sportowym i rekreacyjnym. Umożliwia śledzenie kosztów, analizę celności i zarządzanie sprzętem strzeleckim z inteligentnym asystentem AI.
+Backend do aplikacji zarządzania strzelectwem z inteligentnym asystentem AI.
 
-## Cel aplikacji
-Aplikacja służy do kompleksowego zarządzania strzelectwem sportowym i rekreacyjnym:
+## ✨ Funkcjonalności
 
-- **Zarządzanie sprzętem** - katalog broni i amunicji z cenami
-- **Śledzenie kosztów** - rejestrowanie sesji strzeleckich z automatycznym obliczaniem wydatków
-- **Analiza celności** - pomiar i ocena wyników strzeleckich
-- **AI asystent** - inteligentne komentarze do sesji celnościowych (wymaga klucza API użytkownika)
-- **Statystyki** - miesięczne podsumowania kosztów i postępów
+- **Zarządzanie sprzętem** - katalog broni i amunicji
+- **Śledzenie kosztów** - sesje strzeleckie z automatycznym obliczaniem wydatków  
+- **Analiza celności** - pomiar wyników z komentarzami AI (GPT-5-mini)
+- **Statystyki** - miesięczne podsumowania i analizy
 
-## Technologie
-- **FastAPI** - API framework
-- **SQLModel** - ORM i walidacja danych
-- **SQLite** - baza danych
-- **OpenAI API** - komentarze AI
+## 🛠️ Technologie
 
-## Jak uruchomić
+- FastAPI, SQLModel, SQLite, OpenAI API
 
-1. Zainstaluj zależności:
+## 🚀 Instalacja
+
 ```bash
+python3 -m venv .venv
+source .venv/bin/activate
 pip install -r requirements.txt
+python3 -m uvicorn main:app --reload --host 0.0.0.0 --port 8000
 ```
 
-2. Uruchom serwer:
-```bash
-python -m uvicorn main:app --reload --host 0.0.0.0 --port 8000
-```
+**Dostęp**: http://localhost:8000
 
-API będzie dostępne na: http://localhost:8000
+## 📡 API Endpoints
 
-**Uwaga**: AI komentarze wymagają klucza API OpenAI od użytkownika.
+- `GET /api/guns/` - lista broni
+- `GET /api/ammo/` - lista amunicji  
+- `POST /api/sessions/cost` - dodaj sesję kosztową
+- `POST /api/sessions/accuracy` - dodaj sesję celnościową
+- `GET /api/sessions/summary` - statystyki miesięczne
 
-## Endpointy
-- `GET /guns/` - lista broni
-- `GET /ammo/` - lista amunicji  
-- `POST /sessions/cost` - dodaj sesję kosztową
-- `POST /sessions/accuracy` - dodaj sesję celnościową
-- `GET /sessions/summary` - statystyki miesięczne
+## 🤖 AI Komentarze
 
-## Plany na przyszłość
-- **Migracja do Supabase** - przejście z SQLite na Supabase 
-- **Konta użytkowników** - logowanie i rejestracja, każdy użytkownik ma dostęp tylko do swoich danych
-- **Poziomy zaawansowania** - wybór poziomu (Początkujący, Średniozaawansowany, Zaawansowany)
-- **Inteligentne AI** - model AI dostosowuje rygorystyczność oceny do poziomu doświadczenia użytkownika
+Aplikacja używa GPT-5-mini do generowania komentarzy do sesji celnościowych. Użytkownik podaje własny klucz OpenAI w formularzu.
+
+## 🚀 Deployment
+
+Automatyczny deployment na Render.com przez `render.yaml`.
+
+## 🔮 Plany na przyszłość
+
+- Konta użytkowników z prywatnymi kolekcjami
+- Poziomy zaawansowania (Początkujący, Średniozaawansowany, Zaawansowany)
+- Inteligentne AI dostosowane do poziomu doświadczenia
+
+---
+
+**Stworzone z ❤️ dla społeczności strzeleckiej**
