@@ -215,3 +215,6 @@ venv
 
 # AI Assistant instructions
 AGENTS.md
+ammo_cost_log-backend.iml
+misc.xml
+.venv1
