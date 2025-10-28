@@ -8,17 +8,15 @@ from database import get_session
 router = APIRouter()
 
 class QuantityPayload(BaseModel):
-    amount: int = Field(gt=0, description="Ilość do dodania")
+    amount: int = Field(gt=0)
 
 @router.get("/", response_model=List[AmmoRead])
 def get_ammo(session: Session = Depends(get_session)):
-    """Pobiera listę wszystkich amunicji"""
     ammo_list = session.exec(select(Ammo)).all()
     return ammo_list
 
 @router.get("/{ammo_id}", response_model=AmmoRead)
 def get_ammo_by_id(ammo_id: int, session: Session = Depends(get_session)):
-    """Pobiera konkretną amunicję po ID"""
     ammo = session.get(Ammo, ammo_id)
     if not ammo:
         raise HTTPException(status_code=404, detail="Amunicja nie została znaleziona")
@@ -26,7 +24,6 @@ def get_ammo_by_id(ammo_id: int, session: Session = Depends(get_session)):
 
 @router.post("/", response_model=AmmoRead)
 def add_ammo(ammo_data: AmmoCreate, session: Session = Depends(get_session)):
-    """Dodaje nową amunicję"""
     ammo = Ammo.model_validate(ammo_data)
     session.add(ammo)
     session.commit()
@@ -35,7 +32,6 @@ def add_ammo(ammo_data: AmmoCreate, session: Session = Depends(get_session)):
 
 @router.put("/{ammo_id}", response_model=AmmoRead)
 def update_ammo(ammo_id: int, ammo_data: AmmoUpdate, session: Session = Depends(get_session)):
-    """Aktualizuje istniejącą amunicję"""
     ammo = session.get(Ammo, ammo_id)
     if not ammo:
         raise HTTPException(status_code=404, detail="Amunicja nie została znaleziona")
@@ -51,7 +47,6 @@ def update_ammo(ammo_id: int, ammo_data: AmmoUpdate, session: Session = Depends(
 
 @router.delete("/{ammo_id}")
 def delete_ammo(ammo_id: int, session: Session = Depends(get_session)):
-    """Usuwa amunicję"""
     ammo = session.get(Ammo, ammo_id)
     if not ammo:
         raise HTTPException(status_code=404, detail="Amunicja nie została znaleziona")
@@ -62,7 +57,6 @@ def delete_ammo(ammo_id: int, session: Session = Depends(get_session)):
 
 @router.post("/{ammo_id}/add", response_model=AmmoRead)
 def add_ammo_quantity(ammo_id: int, payload: QuantityPayload, session: Session = Depends(get_session)):
-    """Dodaje ilość do istniejącej amunicji"""
     ammo = session.get(Ammo, ammo_id)
     if not ammo:
         raise HTTPException(status_code=404, detail="Amunicja nie została znaleziona")

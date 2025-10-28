@@ -22,20 +22,20 @@ except Exception as e:
 router = APIRouter()
 
 class CostSessionInput(BaseModel):
-    gun_id: int = Field(description="ID broni")
-    ammo_id: int = Field(description="ID amunicji")
-    date: Optional[str] = Field(default=None, description="Data w formacie YYYY-MM-DD")
-    shots: int = Field(gt=0, description="Liczba strzałów")
-    openai_api_key: Optional[str] = Field(default=None, description="Klucz API OpenAI")
+    gun_id: int
+    ammo_id: int
+    date: Optional[str] = Field(default=None)
+    shots: int = Field(gt=0)
+    openai_api_key: Optional[str] = Field(default=None)
 
 class AccuracySessionInput(BaseModel):
-    gun_id: int = Field(description="ID broni")
-    ammo_id: int = Field(description="ID amunicji")
-    date: Optional[str] = Field(default=None, description="Data w formacie YYYY-MM-DD")
-    distance_m: int = Field(gt=0, description="Dystans w metrach")
-    shots: int = Field(gt=0, description="Liczba strzałów")
-    hits: int = Field(ge=0, description="Liczba trafień")
-    openai_api_key: Optional[str] = Field(default=None, description="Klucz API OpenAI")
+    gun_id: int
+    ammo_id: int
+    date: Optional[str] = Field(default=None)
+    distance_m: int = Field(gt=0)
+    shots: int = Field(gt=0)
+    hits: int = Field(ge=0)
+    openai_api_key: Optional[str] = Field(default=None)
 
 class MonthlySummary(BaseModel):
     month: str
@@ -43,7 +43,6 @@ class MonthlySummary(BaseModel):
     total_shots: int
 
 def _parse_date(date_str: Optional[str]) -> date:
-    """Parsuje datę z stringa lub zwraca dzisiejszą datę"""
     if not date_str:
         return date.today()
     
@@ -56,7 +55,6 @@ def _parse_date(date_str: Optional[str]) -> date:
         )
 
 def _validate_ammo_gun_compatibility(ammo: Ammo, gun: Gun) -> bool:
-    """Sprawdza czy amunicja pasuje do broni"""
     if not ammo.caliber or not gun.caliber:
         return False
     
@@ -85,7 +83,6 @@ def _validate_ammo_gun_compatibility(ammo: Ammo, gun: Gun) -> bool:
     return False
 
 def _validate_session_data(gun: Gun, ammo: Ammo, shots: int, hits: Optional[int] = None) -> None:
-    """Waliduje dane sesji"""
     if not gun:
         raise HTTPException(status_code=404, detail="Broń nie została znaleziona")
     
@@ -111,7 +108,6 @@ def _validate_session_data(gun: Gun, ammo: Ammo, shots: int, hits: Optional[int]
         )
 
 def _generate_ai_comment(gun: Gun, distance: int, hits: int, shots: int, accuracy: float, api_key: Optional[str] = None) -> str:
-    """Generuje komentarz AI dla sesji celnościowej"""
     logger.info(f"Generowanie komentarza AI dla {gun.name}, celność: {accuracy}%")
     
     # Wymagaj klucza API od użytkownika
@@ -156,7 +152,6 @@ def _generate_ai_comment(gun: Gun, distance: int, hits: int, shots: int, accurac
 
 @router.get("/", response_model=Dict[str, List])
 def get_all_sessions(session: Session = Depends(get_session)):
-    """Pobiera wszystkie sesje"""
     cost_sessions = session.exec(select(ShootingSession)).all()
     accuracy_sessions = session.exec(select(AccuracySession)).all()
     
@@ -167,7 +162,6 @@ def get_all_sessions(session: Session = Depends(get_session)):
 
 @router.post("/cost", response_model=Dict[str, Any])
 def add_cost_session(data: CostSessionInput, session: Session = Depends(get_session)):
-    """Dodaje sesję kosztową"""
     parsed_date = _parse_date(data.date)
     
     gun = session.get(Gun, data.gun_id)
@@ -198,7 +192,6 @@ def add_cost_session(data: CostSessionInput, session: Session = Depends(get_sess
 
 @router.post("/accuracy", response_model=Dict[str, Any])
 def add_accuracy_session(data: AccuracySessionInput, session: Session = Depends(get_session)):
-    """Dodaje sesję celnościową z komentarzem AI"""
     parsed_date = _parse_date(data.date)
     
     gun = session.get(Gun, data.gun_id)
@@ -247,7 +240,6 @@ def add_accuracy_session(data: AccuracySessionInput, session: Session = Depends(
 
 @router.get("/summary", response_model=List[MonthlySummary])
 def get_monthly_summary(session: Session = Depends(get_session)):
-    """Pobiera podsumowanie miesięczne"""
     sessions = session.exec(select(ShootingSession)).all()
     if not sessions:
         return []

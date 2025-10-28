@@ -8,13 +8,11 @@ router = APIRouter()
 
 @router.get("/", response_model=List[GunRead])
 def get_guns(session: Session = Depends(get_session)):
-    """Pobiera listę wszystkich broni"""
     guns = session.exec(select(Gun)).all()
     return guns
 
 @router.get("/{gun_id}", response_model=GunRead)
 def get_gun(gun_id: int, session: Session = Depends(get_session)):
-    """Pobiera konkretną broń po ID"""
     gun = session.get(Gun, gun_id)
     if not gun:
         raise HTTPException(status_code=404, detail="Broń nie została znaleziona")
@@ -22,7 +20,6 @@ def get_gun(gun_id: int, session: Session = Depends(get_session)):
 
 @router.post("/", response_model=GunRead)
 def add_gun(gun_data: GunCreate, session: Session = Depends(get_session)):
-    """Dodaje nową broń"""
     gun = Gun.model_validate(gun_data)
     session.add(gun)
     session.commit()
@@ -31,7 +28,6 @@ def add_gun(gun_data: GunCreate, session: Session = Depends(get_session)):
 
 @router.put("/{gun_id}", response_model=GunRead)
 def update_gun(gun_id: int, gun_data: GunUpdate, session: Session = Depends(get_session)):
-    """Aktualizuje istniejącą broń"""
     gun = session.get(Gun, gun_id)
     if not gun:
         raise HTTPException(status_code=404, detail="Broń nie została znaleziona")
@@ -47,7 +43,6 @@ def update_gun(gun_id: int, gun_data: GunUpdate, session: Session = Depends(get_
 
 @router.delete("/{gun_id}")
 def delete_gun(gun_id: int, session: Session = Depends(get_session)):
-    """Usuwa broń"""
     gun = session.get(Gun, gun_id)
     if not gun:
         raise HTTPException(status_code=404, detail="Broń nie została znaleziona")

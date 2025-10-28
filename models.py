@@ -5,10 +5,10 @@ from decimal import Decimal
 
 
 class GunBase(SQLModel):
-    name: str = Field(min_length=1, max_length=100, description="Nazwa broni")
-    caliber: Optional[str] = Field(default=None, max_length=20, description="Kaliber")
-    type: Optional[str] = Field(default=None, max_length=50, description="Rodzaj broni (np. Pistolet, Karabin, Strzelba)")
-    notes: Optional[str] = Field(default=None, max_length=500, description="Notatki")
+    name: str = Field(min_length=1, max_length=100)
+    caliber: Optional[str] = Field(default=None, max_length=20)
+    type: Optional[str] = Field(default=None, max_length=50)
+    notes: Optional[str] = Field(default=None, max_length=500)
 
 
 class GunCreate(GunBase):
@@ -27,10 +27,10 @@ class GunUpdate(SQLModel):
 
 
 class AmmoBase(SQLModel):
-    name: str = Field(min_length=1, max_length=100, description="Nazwa amunicji")
-    caliber: Optional[str] = Field(default=None, max_length=20, description="Kaliber")
-    price_per_unit: float = Field(gt=0, description="Cena za jednostkę")
-    units_in_package: Optional[int] = Field(default=None, ge=0, description="Ilość w opakowaniu")
+    name: str = Field(min_length=1, max_length=100)
+    caliber: Optional[str] = Field(default=None, max_length=20)
+    price_per_unit: float = Field(gt=0)
+    units_in_package: Optional[int] = Field(default=None, ge=0)
 
 
 class AmmoCreate(AmmoBase):
@@ -49,12 +49,12 @@ class AmmoUpdate(SQLModel):
 
 
 class ShootingSessionBase(SQLModel):
-    gun_id: int = Field(foreign_key="guns.id", description="ID broni")
-    ammo_id: int = Field(foreign_key="ammo.id", description="ID amunicji")
-    date: Date = Field(description="Data sesji")
-    shots: int = Field(gt=0, description="Liczba strzałów")
-    cost: float = Field(ge=0, description="Koszt")
-    notes: Optional[str] = Field(default=None, max_length=500, description="Notatki")
+    gun_id: int = Field(foreign_key="guns.id")
+    ammo_id: int = Field(foreign_key="ammo.id")
+    date: Date
+    shots: int = Field(gt=0)
+    cost: float = Field(ge=0)
+    notes: Optional[str] = Field(default=None, max_length=500)
 
 
 class ShootingSessionCreate(ShootingSessionBase):
@@ -66,14 +66,14 @@ class ShootingSessionRead(ShootingSessionBase):
 
 
 class AccuracySessionBase(SQLModel):
-    gun_id: int = Field(foreign_key="guns.id", description="ID broni")
-    ammo_id: int = Field(foreign_key="ammo.id", description="ID amunicji")
-    date: Date = Field(description="Data sesji")
-    distance_m: int = Field(gt=0, description="Dystans w metrach")
-    hits: int = Field(ge=0, description="Liczba trafień")
-    shots: int = Field(gt=0, description="Liczba strzałów")
-    accuracy_percent: Optional[float] = Field(default=None, ge=0, le=100, description="Celność w procentach")
-    ai_comment: Optional[str] = Field(default=None, max_length=1000, description="Komentarz AI")
+    gun_id: int = Field(foreign_key="guns.id")
+    ammo_id: int = Field(foreign_key="ammo.id")
+    date: Date
+    distance_m: int = Field(gt=0)
+    hits: int = Field(ge=0)
+    shots: int = Field(gt=0)
+    accuracy_percent: Optional[float] = Field(default=None, ge=0, le=100)
+    ai_comment: Optional[str] = Field(default=None, max_length=1000)
 
 
 class AccuracySessionCreate(AccuracySessionBase):
