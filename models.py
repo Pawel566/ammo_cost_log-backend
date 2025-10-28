@@ -7,6 +7,7 @@ from decimal import Decimal
 class GunBase(SQLModel):
     name: str = Field(min_length=1, max_length=100, description="Nazwa broni")
     caliber: Optional[str] = Field(default=None, max_length=20, description="Kaliber")
+    type: Optional[str] = Field(default=None, max_length=50, description="Rodzaj broni (np. Pistolet, Karabin, Strzelba)")
     notes: Optional[str] = Field(default=None, max_length=500, description="Notatki")
 
 
@@ -21,6 +22,7 @@ class GunRead(GunBase):
 class GunUpdate(SQLModel):
     name: Optional[str] = Field(default=None, min_length=1, max_length=100)
     caliber: Optional[str] = Field(default=None, max_length=20)
+    type: Optional[str] = Field(default=None, max_length=50)
     notes: Optional[str] = Field(default=None, max_length=500)
 
 

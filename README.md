@@ -27,9 +27,14 @@ python3 -m uvicorn main:app --reload --host 0.0.0.0 --port 8000
 ## 📡 API Endpoints
 
 - `GET /api/guns/` - lista broni
-- `GET /api/ammo/` - lista amunicji  
+- `POST /api/guns/` - dodaj broń
+- `PUT /api/guns/{id}` - edytuj broń
+- `DELETE /api/guns/{id}` - usuń broń
+- `GET /api/ammo/` - lista amunicji
+- `POST /api/ammo/` - dodaj amunicję
 - `POST /api/sessions/cost` - dodaj sesję kosztową
 - `POST /api/sessions/accuracy` - dodaj sesję celnościową
+- `GET /api/sessions/` - lista sesji (kosztowe i celnościowe)
 - `GET /api/sessions/summary` - statystyki miesięczne
 
 ## 🤖 AI Komentarze
@@ -45,7 +50,3 @@ Automatyczny deployment na Render.com przez `render.yaml`.
 - Konta użytkowników z prywatnymi kolekcjami
 - Poziomy zaawansowania (Początkujący, Średniozaawansowany, Zaawansowany)
 - Inteligentne AI dostosowane do poziomu doświadczenia
-
----
-
-**Stworzone z ❤️ dla społeczności strzeleckiej**
