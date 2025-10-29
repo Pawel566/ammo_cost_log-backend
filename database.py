@@ -4,6 +4,9 @@ from typing import Generator
 
 DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./dev.db")
 
+if DATABASE_URL.startswith("postgresql://"):
+    DATABASE_URL = DATABASE_URL.replace("postgresql://", "postgresql+psycopg2://", 1)
+
 engine = create_engine(
     DATABASE_URL, 
     echo=os.getenv("DEBUG", "false").lower() == "true",
@@ -11,10 +14,8 @@ engine = create_engine(
 )
 
 def init_db():
-    """Inicjalizuje bazę danych i tworzy wszystkie tabele"""
     SQLModel.metadata.create_all(engine)
 
 def get_session() -> Generator[Session, None, None]:
-    """Dependency do uzyskiwania sesji bazy danych"""
     with Session(engine) as session:
         yield session
