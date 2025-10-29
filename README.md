@@ -55,8 +55,6 @@ Backend automatycznie wykrywa typ bazy danych na podstawie `DATABASE_URL`:
 
 
 
-Backend automatycznie użyje PostgreSQL jeśli `DATABASE_URL` zaczyna się od `postgresql://`.
-
 ## 🔮 Plany na przyszłość
 
 - Konta użytkowników z prywatnymi kolekcjami
