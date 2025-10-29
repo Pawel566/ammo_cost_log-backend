@@ -51,15 +51,9 @@ Backend automatycznie wykrywa typ bazy danych na podstawie `DATABASE_URL`:
 - Lokalnie: używa SQLite (`sqlite:///./dev.db`)
 - Na Renderze: używa PostgreSQL z Supabase
 
-**Ustawienie Supabase na Renderze:**
 
-1. Utwórz projekt w Supabase (https://supabase.com)
-2. Przejdź do Settings → Database
-3. Skopiuj Connection String (URI format)
-4. W Render.com dodaj zmienną środowiskową:
-   - Key: `DATABASE_URL`
-   - Value: `postgresql://postgres:[PASSWORD]@[HOST]:5432/postgres`
-     (zastąp `[PASSWORD]` i `[HOST]` wartościami z Supabase)
+
+
 
 Backend automatycznie użyje PostgreSQL jeśli `DATABASE_URL` zaczyna się od `postgresql://`.
 
