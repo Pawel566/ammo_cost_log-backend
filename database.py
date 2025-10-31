@@ -4,6 +4,10 @@ from typing import Generator
 
 DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./dev.db")
 
+# Normalize Postgres URL schemes for SQLAlchemy
+if DATABASE_URL.startswith("postgres://"):
+    DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
+
 if DATABASE_URL.startswith("postgresql://"):
     DATABASE_URL = DATABASE_URL.replace("postgresql://", "postgresql+psycopg2://", 1)
 
