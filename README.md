@@ -11,7 +11,7 @@ Backend do aplikacji zarządzania strzelectwem z inteligentnym asystentem AI.
 
 ## 🛠️ Technologie
 
-- FastAPI, SQLModel, SQLite, OpenAI API
+- FastAPI, SQLModel, PostgreSQL (Neon.tech), OpenAI API
 
 ## 🚀 Instalacja
 
@@ -45,11 +45,11 @@ Aplikacja używa GPT-5-mini do generowania komentarzy do sesji celnościowych. U
 
 Automatyczny deployment na Render.com przez `render.yaml`.
 
-### Konfiguracja Supabase (PostgreSQL)
+### Konfiguracja bazy danych
 
 Backend automatycznie wykrywa typ bazy danych na podstawie `DATABASE_URL`:
 - Lokalnie: używa SQLite (`sqlite:///./dev.db`)
-- Na Renderze: używa PostgreSQL z Supabase
+- Na Renderze: używa PostgreSQL z Neon.tech (connection string z dashboard Neon.tech)
 
 
 
