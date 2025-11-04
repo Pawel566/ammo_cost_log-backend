@@ -51,3 +51,4 @@ class GunService:
         await asyncio.to_thread(session.commit)
         return {"message": f"Broń o ID {gun_id} została usunięta"}
 
+

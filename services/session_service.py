@@ -267,3 +267,4 @@ class SessionService:
             for month in sorted(cost_summary.keys())
         ]
 
+

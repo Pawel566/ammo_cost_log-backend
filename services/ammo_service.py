@@ -65,3 +65,4 @@ class AmmoService:
         await asyncio.to_thread(session.refresh, ammo)
         return ammo
 
+

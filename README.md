@@ -13,6 +13,31 @@ Backend do aplikacji zarządzania strzelectwem z inteligentnym asystentem AI.
 
 - FastAPI, SQLModel, PostgreSQL (Neon.tech), OpenAI API
 
+## 📁 Struktura projektu
+
+Projekt używa architektury warstwowej:
+
+```
+ammo_cost_log-backend/
+├── main.py              
+├── database.py         
+├── models.py            
+├── routers/             
+│   ├── guns.py
+│   ├── ammo.py
+│   ├── sessions.py
+│   └── auth.py
+└── services/            
+    ├── gun_service.py
+    ├── ammo_service.py
+    └── session_service.py  
+```
+
+**Architektura:**
+- **Routers** - cienka warstwa HTTP, deleguje do serwisów
+- **Services** - logika biznesowa (walidacja, kalkulacje, integracje)
+- **Models** - modele danych i schematy Pydantic
+
 ## 🚀 Instalacja
 
 ```bash
@@ -39,7 +64,20 @@ python3 -m uvicorn main:app --reload --host 0.0.0.0 --port 8000
 
 ## 🤖 AI Komentarze
 
-Aplikacja używa GPT-5-mini do generowania komentarzy do sesji celnościowych. Użytkownik podaje własny klucz OpenAI w formularzu.
+Aplikacja używa GPT-5-mini do generowania komentarzy do sesji celnościowych. Użytkownik podaje własny klucz OpenAI w formularzu. Logika generowania komentarzy znajduje się w `services/session_service.py` (klasa `AIService`).
+
+## 🧪 Testowanie
+
+Dzięki separacji warstw, serwisy można testować niezależnie od FastAPI:
+
+```python
+from services.gun_service import GunService
+from sqlmodel import Session
+
+async def test_create_gun():
+    gun = await GunService.create_gun(session, gun_data)
+    assert gun.name == "Test"
+```
 
 ## 🚀 Deployment
 
