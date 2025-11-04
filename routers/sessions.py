@@ -1,23 +1,9 @@
-from fastapi import APIRouter, HTTPException, Depends
-from sqlmodel import Session, select
-from models import ShootingSession, Ammo, Gun, AccuracySession
-from database import get_session
-from datetime import date, datetime
-from collections import defaultdict
+from fastapi import APIRouter, Depends
+from sqlmodel import Session
 from typing import Optional, List, Dict, Any
 from pydantic import BaseModel, Field
-from openai import OpenAI
-from dotenv import load_dotenv
-import logging
-
-load_dotenv()
-logger = logging.getLogger(__name__)
-
-try:
-    client = OpenAI()
-except Exception as e:
-    logger.warning(f"Nie można zainicjalizować klienta OpenAI: {e}")
-    client = None
+from database import get_session
+from services.session_service import SessionService
 
 router = APIRouter()
 
@@ -42,221 +28,33 @@ class MonthlySummary(BaseModel):
     total_cost: float
     total_shots: int
 
-def _parse_date(date_str: Optional[str]) -> date:
-    if not date_str:
-        return date.today()
-    
-    try:
-        return datetime.strptime(date_str, "%Y-%m-%d").date()
-    except ValueError:
-        raise HTTPException(
-            status_code=400, 
-            detail="Data musi być w formacie YYYY-MM-DD (np. 2025-10-23)"
-        )
-
-def _validate_ammo_gun_compatibility(ammo: Ammo, gun: Gun) -> bool:
-    if not ammo.caliber or not gun.caliber:
-        return False
-    
-    ammo_caliber = ammo.caliber.lower().replace(" ", "").replace(".", "")
-    gun_caliber = gun.caliber.lower().replace(" ", "").replace(".", "")
-    
-    caliber_mappings = {
-        "9mm": ["9x19", "9mm", "9mmparabellum", "9mmpara"],
-        "9x19": ["9mm", "9x19", "9mmparabellum", "9mmpara"],
-        "45acp": ["45acp", "45apc", "45auto", "045", "45APC", "45 APC"],
-        "45apc": ["45acp", "45apc", "45auto", "045"],
-        "045": ["45acp", "45apc", "45auto", "045"],
-        "556": ["556", "556nato", "223", "223rem"],
-        "223": ["556", "556nato", "223", "223rem"],
-        "762": ["762", "762nato", "762x51", "308", "308win"],
-        "308": ["762", "762nato", "762x51", "308", "308win"]
-    }
-    
-    if gun_caliber in ammo_caliber or ammo_caliber in gun_caliber:
-        return True
-    
-    for base_caliber, variants in caliber_mappings.items():
-        if gun_caliber in variants and ammo_caliber in variants:
-            return True
-    
-    return False
-
-def _validate_session_data(gun: Gun, ammo: Ammo, shots: int, hits: Optional[int] = None) -> None:
-    if not gun:
-        raise HTTPException(status_code=404, detail="Broń nie została znaleziona")
-    
-    if not ammo:
-        raise HTTPException(status_code=404, detail="Amunicja nie została znaleziona")
-    
-    if not _validate_ammo_gun_compatibility(ammo, gun):
-        raise HTTPException(
-            status_code=400, 
-            detail="Wybrana amunicja nie pasuje do kalibru broni"
-        )
-    
-    if ammo.units_in_package is None or ammo.units_in_package < shots:
-        raise HTTPException(
-            status_code=400, 
-            detail=f"Za mało amunicji. Pozostało tylko {ammo.units_in_package or 0} sztuk."
-        )
-    
-    if hits is not None and (hits < 0 or hits > shots):
-        raise HTTPException(
-            status_code=400, 
-            detail="Liczba trafień musi być między 0 a całkowitą liczbą strzałów"
-        )
-
-def _generate_ai_comment(gun: Gun, distance: int, hits: int, shots: int, accuracy: float, api_key: Optional[str] = None) -> str:
-    logger.info(f"Generowanie komentarza AI dla {gun.name}, celność: {accuracy}%")
-    
-    # Wymagaj klucza API od użytkownika
-    if not api_key:
-        logger.warning("Brak klucza API OpenAI od użytkownika")
-        return "Brak klucza API OpenAI — dodaj klucz w formularzu aby otrzymać komentarz AI."
-    
-    try:
-        client_with_key = OpenAI(api_key=api_key)
-    except Exception as e:
-        logger.error(f"Błąd inicjalizacji klienta OpenAI z podanym kluczem: {e}")
-        return f"Nieprawidłowy klucz API OpenAI: {e}"
-    
-    try:
-        prompt = (
-            f"Ocena wyników strzeleckich:\n"
-            f"Broń: {gun.name}, kaliber {gun.caliber}\n"
-            f"Dystans: {distance} m\n"
-            f"Trafienia: {hits} z {shots} strzałów\n"
-            f"Celność: {accuracy}%\n"
-            f"Napisz krótki komentarz po polsku — maks 2 zdania z oceną i sugestią poprawy."
-        )
-
-        messages = []
-        messages.append({"role": "system", "content": "Jesteś instruktorem strzelectwa."})
-        messages.append({"role": "user", "content": prompt})
-
-        logger.info(f"Wysyłanie zapytania do OpenAI: {prompt[:100]}...")
-        
-        response = client_with_key.chat.completions.create(
-            model="gpt-5-mini",
-            messages=messages
-        )
-        
-        result = response.choices[0].message.content.strip()
-        logger.info(f"Otrzymano odpowiedź AI: {result}")
-        return result
-        
-    except Exception as e:
-        logger.error(f"Błąd podczas generowania komentarza AI: {e}")
-        return f"Błąd AI: {e}"
-
 @router.get("/", response_model=Dict[str, List])
-def get_all_sessions(session: Session = Depends(get_session)):
-    cost_sessions = session.exec(select(ShootingSession)).all()
-    accuracy_sessions = session.exec(select(AccuracySession)).all()
-    
-    return {
-        "cost_sessions": cost_sessions,
-        "accuracy_sessions": accuracy_sessions
-    }
+async def get_all_sessions(session: Session = Depends(get_session)):
+    return await SessionService.get_all_sessions(session)
 
 @router.post("/cost", response_model=Dict[str, Any])
-def add_cost_session(data: CostSessionInput, session: Session = Depends(get_session)):
-    parsed_date = _parse_date(data.date)
-    
-    gun = session.get(Gun, data.gun_id)
-    ammo = session.get(Ammo, data.ammo_id)
-    
-    _validate_session_data(gun, ammo, data.shots)
-    
-    cost = round(ammo.price_per_unit * data.shots, 2)
-    ammo.units_in_package -= data.shots
-    
-    new_session = ShootingSession(
-        gun_id=data.gun_id,
-        ammo_id=data.ammo_id,
-        date=parsed_date,
-        shots=data.shots,
-        cost=cost
+async def add_cost_session(data: CostSessionInput, session: Session = Depends(get_session)):
+    return await SessionService.create_cost_session(
+        session,
+        data.gun_id,
+        data.ammo_id,
+        data.date,
+        data.shots
     )
-    
-    session.add(new_session)
-    session.add(ammo)
-    session.commit()
-    session.refresh(new_session)
-    
-    return {
-        "session": new_session, 
-        "remaining_ammo": ammo.units_in_package
-    }
 
 @router.post("/accuracy", response_model=Dict[str, Any])
-def add_accuracy_session(data: AccuracySessionInput, session: Session = Depends(get_session)):
-    parsed_date = _parse_date(data.date)
-    
-    gun = session.get(Gun, data.gun_id)
-    ammo = session.get(Ammo, data.ammo_id)
-    
-    _validate_session_data(gun, ammo, data.shots, data.hits)
-    
-    cost = round(ammo.price_per_unit * data.shots, 2)
-    ammo.units_in_package -= data.shots
-    accuracy = round((data.hits / data.shots) * 100, 2)
-    
-    ai_comment = _generate_ai_comment(gun, data.distance_m, data.hits, data.shots, accuracy, data.openai_api_key)
-    
-    cost_session = ShootingSession(
-        gun_id=data.gun_id,
-        ammo_id=data.ammo_id,
-        date=parsed_date,
-        shots=data.shots,
-        cost=cost,
-        notes=f"Sesja celnościowa - {data.hits}/{data.shots} trafień ({accuracy}%)"
+async def add_accuracy_session(data: AccuracySessionInput, session: Session = Depends(get_session)):
+    return await SessionService.create_accuracy_session(
+        session,
+        data.gun_id,
+        data.ammo_id,
+        data.date,
+        data.distance_m,
+        data.shots,
+        data.hits,
+        data.openai_api_key
     )
-    
-    accuracy_session = AccuracySession(
-        gun_id=data.gun_id,
-        ammo_id=data.ammo_id,
-        date=parsed_date,
-        distance_m=data.distance_m,
-        hits=data.hits,
-        shots=data.shots,
-        accuracy_percent=accuracy,
-        ai_comment=ai_comment
-    )
-    
-    session.add(cost_session)
-    session.add(accuracy_session)
-    session.add(ammo)
-    session.commit()
-    session.refresh(cost_session)
-    session.refresh(accuracy_session)
-    
-    return {
-        "accuracy_session": accuracy_session,
-        "cost_session": cost_session,
-        "remaining_ammo": ammo.units_in_package
-    }
 
 @router.get("/summary", response_model=List[MonthlySummary])
-def get_monthly_summary(session: Session = Depends(get_session)):
-    sessions = session.exec(select(ShootingSession)).all()
-    if not sessions:
-        return []
-
-    cost_summary = defaultdict(float)
-    shot_summary = defaultdict(int)
-
-    for session_data in sessions:
-        month_key = session_data.date.strftime("%Y-%m")
-        cost_summary[month_key] += float(session_data.cost)
-        shot_summary[month_key] += session_data.shots
-
-    return [
-        MonthlySummary(
-            month=month,
-            total_cost=round(cost_summary[month], 2),
-            total_shots=shot_summary[month]
-        )
-        for month in sorted(cost_summary.keys())
-    ]
+async def get_monthly_summary(session: Session = Depends(get_session)):
+    return await SessionService.get_monthly_summary(session)

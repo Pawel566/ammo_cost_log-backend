@@ -1,52 +1,28 @@
-from fastapi import APIRouter, HTTPException, Depends
-from sqlmodel import Session, select
+from fastapi import APIRouter, Depends
+from sqlmodel import Session
 from typing import List
-from models import Gun, GunCreate, GunRead, GunUpdate
+from models import GunCreate, GunRead, GunUpdate
 from database import get_session
+from services.gun_service import GunService
 
 router = APIRouter()
 
 @router.get("/", response_model=List[GunRead])
-def get_guns(session: Session = Depends(get_session)):
-    guns = session.exec(select(Gun)).all()
-    return guns
+async def get_guns(session: Session = Depends(get_session)):
+    return await GunService.get_all_guns(session)
 
 @router.get("/{gun_id}", response_model=GunRead)
-def get_gun(gun_id: int, session: Session = Depends(get_session)):
-    gun = session.get(Gun, gun_id)
-    if not gun:
-        raise HTTPException(status_code=404, detail="Broń nie została znaleziona")
-    return gun
+async def get_gun(gun_id: int, session: Session = Depends(get_session)):
+    return await GunService.get_gun_by_id(session, gun_id)
 
 @router.post("/", response_model=GunRead)
-def add_gun(gun_data: GunCreate, session: Session = Depends(get_session)):
-    gun = Gun.model_validate(gun_data)
-    session.add(gun)
-    session.commit()
-    session.refresh(gun)
-    return gun
+async def add_gun(gun_data: GunCreate, session: Session = Depends(get_session)):
+    return await GunService.create_gun(session, gun_data)
 
 @router.put("/{gun_id}", response_model=GunRead)
-def update_gun(gun_id: int, gun_data: GunUpdate, session: Session = Depends(get_session)):
-    gun = session.get(Gun, gun_id)
-    if not gun:
-        raise HTTPException(status_code=404, detail="Broń nie została znaleziona")
-    
-    gun_dict = gun_data.model_dump(exclude_unset=True)
-    for key, value in gun_dict.items():
-        setattr(gun, key, value)
-    
-    session.add(gun)
-    session.commit()
-    session.refresh(gun)
-    return gun
+async def update_gun(gun_id: int, gun_data: GunUpdate, session: Session = Depends(get_session)):
+    return await GunService.update_gun(session, gun_id, gun_data)
 
 @router.delete("/{gun_id}")
-def delete_gun(gun_id: int, session: Session = Depends(get_session)):
-    gun = session.get(Gun, gun_id)
-    if not gun:
-        raise HTTPException(status_code=404, detail="Broń nie została znaleziona")
-    
-    session.delete(gun)
-    session.commit()
-    return {"message": f"Broń o ID {gun_id} została usunięta"}
+async def delete_gun(gun_id: int, session: Session = Depends(get_session)):
+    return await GunService.delete_gun(session, gun_id)

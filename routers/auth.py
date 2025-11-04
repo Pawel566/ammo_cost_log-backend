@@ -3,6 +3,7 @@ from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from pydantic import BaseModel
 from supabase import create_client, Client
 import os
+import asyncio
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -46,14 +47,14 @@ class UserInfo(BaseModel):
     email: str
     username: str
 
-def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(security)) -> UserInfo:
+async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(security)) -> UserInfo:
     """Verify JWT token and return user info"""
     if not supabase:
         raise HTTPException(status_code=503, detail="Authentication service not available")
     
     try:
         token = credentials.credentials
-        response = supabase.auth.get_user(token)
+        response = await asyncio.to_thread(supabase.auth.get_user, token)
         
         if not response.user:
             raise HTTPException(status_code=401, detail="Invalid token")
@@ -77,10 +78,13 @@ async def login(request: LoginRequest):
         raise HTTPException(status_code=503, detail="Authentication service not available")
     
     try:
-        response = supabase.auth.sign_in_with_password({
-            "email": request.email,
-            "password": request.password
-        })
+        response = await asyncio.to_thread(
+            supabase.auth.sign_in_with_password,
+            {
+                "email": request.email,
+                "password": request.password
+            }
+        )
         
         if not response.user or not response.session:
             raise HTTPException(status_code=401, detail="Invalid credentials")
@@ -106,15 +110,18 @@ async def register(request: RegisterRequest):
         raise HTTPException(status_code=503, detail="Authentication service not available")
     
     try:
-        response = supabase.auth.sign_up({
-            "email": request.email,
-            "password": request.password,
-            "options": {
-                "data": {
-                    "username": request.username
+        response = await asyncio.to_thread(
+            supabase.auth.sign_up,
+            {
+                "email": request.email,
+                "password": request.password,
+                "options": {
+                    "data": {
+                        "username": request.username
+                    }
                 }
             }
-        })
+        )
         
         if not response.user or not response.session:
             raise HTTPException(status_code=400, detail="Registration failed")
@@ -136,7 +143,7 @@ async def logout():
         raise HTTPException(status_code=503, detail="Authentication service not available")
     
     try:
-        supabase.auth.sign_out()
+        await asyncio.to_thread(supabase.auth.sign_out)
         return {"message": "Logged out successfully"}
     except Exception as e:
         raise HTTPException(status_code=400, detail="Logout failed")
@@ -153,7 +160,7 @@ async def refresh_token(refresh_token: str):
         raise HTTPException(status_code=503, detail="Authentication service not available")
     
     try:
-        response = supabase.auth.refresh_session(refresh_token)
+        response = await asyncio.to_thread(supabase.auth.refresh_session, refresh_token)
         
         if not response.session:
             raise HTTPException(status_code=401, detail="Invalid refresh token")

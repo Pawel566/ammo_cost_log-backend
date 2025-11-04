@@ -1,9 +1,10 @@
-from fastapi import APIRouter, HTTPException, Depends
-from sqlmodel import Session, select
+from fastapi import APIRouter, Depends
+from sqlmodel import Session
 from typing import List
 from pydantic import BaseModel, Field
-from models import Ammo, AmmoCreate, AmmoRead, AmmoUpdate
+from models import AmmoCreate, AmmoRead, AmmoUpdate
 from database import get_session
+from services.ammo_service import AmmoService
 
 router = APIRouter()
 
@@ -11,60 +12,25 @@ class QuantityPayload(BaseModel):
     amount: int = Field(gt=0)
 
 @router.get("/", response_model=List[AmmoRead])
-def get_ammo(session: Session = Depends(get_session)):
-    ammo_list = session.exec(select(Ammo)).all()
-    return ammo_list
+async def get_ammo(session: Session = Depends(get_session)):
+    return await AmmoService.get_all_ammo(session)
 
 @router.get("/{ammo_id}", response_model=AmmoRead)
-def get_ammo_by_id(ammo_id: int, session: Session = Depends(get_session)):
-    ammo = session.get(Ammo, ammo_id)
-    if not ammo:
-        raise HTTPException(status_code=404, detail="Amunicja nie została znaleziona")
-    return ammo
+async def get_ammo_by_id(ammo_id: int, session: Session = Depends(get_session)):
+    return await AmmoService.get_ammo_by_id(session, ammo_id)
 
 @router.post("/", response_model=AmmoRead)
-def add_ammo(ammo_data: AmmoCreate, session: Session = Depends(get_session)):
-    ammo = Ammo.model_validate(ammo_data)
-    session.add(ammo)
-    session.commit()
-    session.refresh(ammo)
-    return ammo
+async def add_ammo(ammo_data: AmmoCreate, session: Session = Depends(get_session)):
+    return await AmmoService.create_ammo(session, ammo_data)
 
 @router.put("/{ammo_id}", response_model=AmmoRead)
-def update_ammo(ammo_id: int, ammo_data: AmmoUpdate, session: Session = Depends(get_session)):
-    ammo = session.get(Ammo, ammo_id)
-    if not ammo:
-        raise HTTPException(status_code=404, detail="Amunicja nie została znaleziona")
-    
-    ammo_dict = ammo_data.model_dump(exclude_unset=True)
-    for key, value in ammo_dict.items():
-        setattr(ammo, key, value)
-    
-    session.add(ammo)
-    session.commit()
-    session.refresh(ammo)
-    return ammo
+async def update_ammo(ammo_id: int, ammo_data: AmmoUpdate, session: Session = Depends(get_session)):
+    return await AmmoService.update_ammo(session, ammo_id, ammo_data)
 
 @router.delete("/{ammo_id}")
-def delete_ammo(ammo_id: int, session: Session = Depends(get_session)):
-    ammo = session.get(Ammo, ammo_id)
-    if not ammo:
-        raise HTTPException(status_code=404, detail="Amunicja nie została znaleziona")
-    
-    session.delete(ammo)
-    session.commit()
-    return {"message": f"Amunicja o ID {ammo_id} została usunięta"}
+async def delete_ammo(ammo_id: int, session: Session = Depends(get_session)):
+    return await AmmoService.delete_ammo(session, ammo_id)
 
 @router.post("/{ammo_id}/add", response_model=AmmoRead)
-def add_ammo_quantity(ammo_id: int, payload: QuantityPayload, session: Session = Depends(get_session)):
-    ammo = session.get(Ammo, ammo_id)
-    if not ammo:
-        raise HTTPException(status_code=404, detail="Amunicja nie została znaleziona")
-
-    current = ammo.units_in_package or 0
-    ammo.units_in_package = current + payload.amount
-
-    session.add(ammo)
-    session.commit()
-    session.refresh(ammo)
-    return ammo
+async def add_ammo_quantity(ammo_id: int, payload: QuantityPayload, session: Session = Depends(get_session)):
+    return await AmmoService.add_ammo_quantity(session, ammo_id, payload.amount)
