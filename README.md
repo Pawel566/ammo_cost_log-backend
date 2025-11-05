@@ -93,6 +93,10 @@ Backend automatycznie wykrywa typ bazy danych na podstawie `DATABASE_URL`:
 
 
 
+## 📜 Changelog
+
+Zobacz pełną historię zmian → [CHANGELOG.md](CHANGELOG.md)
+
 ## 🔮 Plany na przyszłość
 
 - Konta użytkowników z prywatnymi kolekcjami

@@ -52,3 +52,4 @@ class GunService:
         return {"message": f"Broń o ID {gun_id} została usunięta"}
 
 
+
