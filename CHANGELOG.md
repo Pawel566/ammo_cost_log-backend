@@ -1,9 +1,14 @@
 # Changelog
 
-## [0.2.0] – 2025-11-04
+## [0.2.0] – 2025-11-05
+### Dodano
+- Warstwa serwisowa (`services/`) – logika przeniesiona z routerów
+- Obsługa błędów Supabase i OpenAI z szczegółowymi komunikatami
+
+
 ### Zmieniono
-- Dodano warstwę serwisową (`services/`) – logika przeniesiona z routerów.
-- Wprowadzono obslugę wyjątków.
-- Poprawiono strukturę projektu (routery = routing, serwisy = logika).
+- Poprawiono strukturę projektu (routery = routing, serwisy = logika)
+- Ulepszona obsługa wyjątków
+
 
 
