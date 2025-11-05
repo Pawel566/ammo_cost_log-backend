@@ -2,6 +2,14 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from database import init_db
 from routers import guns, ammo, sessions, auth
+import logging
+import os
+
+# Konfiguracja logowania
+logging.basicConfig(
+    level=logging.INFO if os.getenv("DEBUG", "false").lower() != "true" else logging.DEBUG,
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+)
 
 app = FastAPI(
     title="Ammo Cost Log API", 

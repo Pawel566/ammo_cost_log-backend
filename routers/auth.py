@@ -5,6 +5,7 @@ from supabase import create_client, Client
 import os
 import asyncio
 from dotenv import load_dotenv
+from services.error_handler import ErrorHandler
 
 load_dotenv()
 
@@ -57,7 +58,7 @@ async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(s
         response = await asyncio.to_thread(supabase.auth.get_user, token)
         
         if not response.user:
-            raise HTTPException(status_code=401, detail="Invalid token")
+            raise HTTPException(status_code=401, detail="Nieprawidłowy token")
         
         # Get user metadata for username
         user_metadata = response.user.user_metadata or {}
@@ -68,8 +69,10 @@ async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(s
             email=response.user.email,
             username=username
         )
+    except HTTPException:
+        raise
     except Exception as e:
-        raise HTTPException(status_code=401, detail="Invalid token")
+        raise ErrorHandler.handle_supabase_error(e, "get_current_user")
 
 @router.post("/login", response_model=AuthResponse)
 async def login(request: LoginRequest):
@@ -87,7 +90,7 @@ async def login(request: LoginRequest):
         )
         
         if not response.user or not response.session:
-            raise HTTPException(status_code=401, detail="Invalid credentials")
+            raise HTTPException(status_code=401, detail="Nieprawidłowe dane logowania")
         
         # Get username from user metadata
         user_metadata = response.user.user_metadata or {}
@@ -100,8 +103,10 @@ async def login(request: LoginRequest):
             email=response.user.email,
             username=username
         )
+    except HTTPException:
+        raise
     except Exception as e:
-        raise HTTPException(status_code=401, detail="Invalid credentials")
+        raise ErrorHandler.handle_supabase_error(e, "login")
 
 @router.post("/register", response_model=AuthResponse)
 async def register(request: RegisterRequest):
@@ -124,7 +129,7 @@ async def register(request: RegisterRequest):
         )
         
         if not response.user or not response.session:
-            raise HTTPException(status_code=400, detail="Registration failed")
+            raise HTTPException(status_code=400, detail="Rejestracja nie powiodła się")
         
         return AuthResponse(
             access_token=response.session.access_token,
@@ -133,8 +138,10 @@ async def register(request: RegisterRequest):
             email=response.user.email,
             username=request.username
         )
+    except HTTPException:
+        raise
     except Exception as e:
-        raise HTTPException(status_code=400, detail="Registration failed")
+        raise ErrorHandler.handle_supabase_error(e, "register")
 
 @router.post("/logout")
 async def logout():
@@ -144,9 +151,11 @@ async def logout():
     
     try:
         await asyncio.to_thread(supabase.auth.sign_out)
-        return {"message": "Logged out successfully"}
+        return {"message": "Wylogowano pomyślnie"}
+    except HTTPException:
+        raise
     except Exception as e:
-        raise HTTPException(status_code=400, detail="Logout failed")
+        raise ErrorHandler.handle_supabase_error(e, "logout")
 
 @router.get("/me", response_model=UserInfo)
 async def get_me(current_user: UserInfo = Depends(get_current_user)):
@@ -163,11 +172,13 @@ async def refresh_token(refresh_token: str):
         response = await asyncio.to_thread(supabase.auth.refresh_session, refresh_token)
         
         if not response.session:
-            raise HTTPException(status_code=401, detail="Invalid refresh token")
+            raise HTTPException(status_code=401, detail="Nieprawidłowy refresh token")
         
         return {
             "access_token": response.session.access_token,
             "refresh_token": response.session.refresh_token
         }
+    except HTTPException:
+        raise
     except Exception as e:
-        raise HTTPException(status_code=401, detail="Invalid refresh token")
+        raise ErrorHandler.handle_supabase_error(e, "refresh_token")

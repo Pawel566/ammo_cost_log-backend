@@ -7,6 +7,7 @@ from models import ShootingSession, Ammo, Gun, AccuracySession
 import asyncio
 import logging
 from openai import OpenAI
+from services.error_handler import ErrorHandler
 
 logger = logging.getLogger(__name__)
 
@@ -103,8 +104,7 @@ class AIService:
         try:
             client_with_key = OpenAI(api_key=api_key)
         except Exception as e:
-            logger.error(f"Błąd inicjalizacji klienta OpenAI z podanym kluczem: {e}")
-            return f"Nieprawidłowy klucz API OpenAI: {e}"
+            return ErrorHandler.handle_openai_error(e, "openai_client_init")
         
         try:
             prompt = (
@@ -136,8 +136,7 @@ class AIService:
             return result
             
         except Exception as e:
-            logger.error(f"Błąd podczas generowania komentarza AI: {e}")
-            return f"Błąd AI: {e}"
+            return ErrorHandler.handle_openai_error(e, "generate_ai_comment")
 
 
 class SessionService:
@@ -266,6 +265,7 @@ class SessionService:
             }
             for month in sorted(cost_summary.keys())
         ]
+
 
 
 

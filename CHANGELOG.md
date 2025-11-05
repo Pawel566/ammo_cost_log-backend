@@ -6,3 +6,4 @@
 - Wprowadzono obslugę wyjątków.
 - Poprawiono strukturę projektu (routery = routing, serwisy = logika).
 
+
