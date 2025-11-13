@@ -1,0 +1,38 @@
+version: "3.9"
+
+services:
+  db:
+    image: postgres:15
+    container_name: ammo_cost_log_db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ammo
+      POSTGRES_PASSWORD: ammo
+      POSTGRES_DB: ammo_cost_log
+    ports:
+      - "5432:5432"
+    volumes:
+      - ammo_db_data:/var/lib/postgresql/data
+
+  backend:
+    build: .
+    container_name: ammo_cost_log_backend
+    restart: unless-stopped
+    depends_on:
+      - db
+    environment:
+      DATABASE_URL: postgresql+psycopg2://ammo:ammo@db:5432/ammo_cost_log
+      SUPABASE_URL: ${SUPABASE_URL:-}
+      SUPABASE_ANON_KEY: ${SUPABASE_ANON_KEY:-}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      DEBUG: ${DEBUG:-false}
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./:/app
+
+volumes:
+  ammo_db_data:
+
+
+
