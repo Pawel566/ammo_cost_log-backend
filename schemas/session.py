@@ -7,7 +7,7 @@ from schemas.pagination import PaginatedResponse
 class SessionCreate(BaseModel):
     gun_id: int = Field(gt=0)
     ammo_id: int = Field(gt=0)
-    date: Optional[date] = None
+    date: Optional[str] = None
     shots: int = Field(gt=0)
 
 
