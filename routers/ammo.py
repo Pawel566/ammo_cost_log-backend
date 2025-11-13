@@ -15,7 +15,7 @@ router = APIRouter()
 class QuantityPayload(BaseModel):
     amount: int = Field(gt=0)
 
-@router.get("/", response_model=PaginatedResponse[AmmoRead])
+@router.get("", response_model=PaginatedResponse[AmmoRead])
 async def get_ammo(
     session: Session = Depends(get_session),
     user: UserContext = Depends(role_required([UserRole.guest, UserRole.user, UserRole.admin])),
@@ -33,7 +33,7 @@ async def get_ammo_by_id(
 ):
     return await AmmoService.get_ammo_by_id(session, ammo_id, user)
 
-@router.post("/", response_model=AmmoRead)
+@router.post("", response_model=AmmoRead)
 async def add_ammo(
     ammo_data: AmmoCreate,
     session: Session = Depends(get_session),
