@@ -35,7 +35,7 @@ class GunService:
         )
 
     @staticmethod
-    async def _get_single_gun(session: Session, gun_id: int, user: UserContext) -> Gun:
+    async def _get_single_gun(session: Session, gun_id: str, user: UserContext) -> Gun:
         query = GunService._query_for_user(user).where(Gun.id == gun_id)
         gun = await asyncio.to_thread(lambda: session.exec(query).first())
         if not gun:
@@ -57,7 +57,7 @@ class GunService:
         return {"total": total, "items": items}
 
     @staticmethod
-    async def get_gun_by_id(session: Session, gun_id: int, user: UserContext) -> Gun:
+    async def get_gun_by_id(session: Session, gun_id: str, user: UserContext) -> Gun:
         return await GunService._get_single_gun(session, gun_id, user)
 
     @staticmethod
@@ -72,7 +72,7 @@ class GunService:
         return gun
 
     @staticmethod
-    async def update_gun(session: Session, gun_id: int, gun_data: GunUpdate, user: UserContext) -> Gun:
+    async def update_gun(session: Session, gun_id: str, gun_data: GunUpdate, user: UserContext) -> Gun:
         gun = await GunService._get_single_gun(session, gun_id, user)
         gun_dict = gun_data.model_dump(exclude_unset=True)
         for key, value in gun_dict.items():
@@ -87,7 +87,7 @@ class GunService:
         return gun
 
     @staticmethod
-    async def delete_gun(session: Session, gun_id: int, user: UserContext) -> dict:
+    async def delete_gun(session: Session, gun_id: str, user: UserContext) -> dict:
         gun = await GunService._get_single_gun(session, gun_id, user)
         await asyncio.to_thread(session.delete, gun)
         await asyncio.to_thread(session.commit)

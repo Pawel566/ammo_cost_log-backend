@@ -23,7 +23,7 @@ async def get_guns(
 
 @router.get("/{gun_id}", response_model=GunRead)
 async def get_gun(
-    gun_id: int,
+    gun_id: str,
     session: Session = Depends(get_session),
     user: UserContext = Depends(role_required([UserRole.guest, UserRole.user, UserRole.admin]))
 ):
@@ -39,7 +39,7 @@ async def add_gun(
 
 @router.put("/{gun_id}", response_model=GunRead)
 async def update_gun(
-    gun_id: int,
+    gun_id: str,
     gun_data: GunUpdate,
     session: Session = Depends(get_session),
     user: UserContext = Depends(role_required([UserRole.guest, UserRole.user, UserRole.admin]))
@@ -48,7 +48,7 @@ async def update_gun(
 
 @router.delete("/{gun_id}")
 async def delete_gun(
-    gun_id: int,
+    gun_id: str,
     session: Session = Depends(get_session),
     user: UserContext = Depends(role_required([UserRole.guest, UserRole.user, UserRole.admin]))
 ):

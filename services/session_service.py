@@ -2,7 +2,7 @@ from sqlmodel import Session, select
 from typing import Optional, List, Dict, Any, Union
 from datetime import date, datetime
 from collections import defaultdict
-from sqlalchemy import or_, func, cast, String
+from sqlalchemy import or_, func, cast, String, not_
 from fastapi import HTTPException
 from models import ShootingSession, Ammo, Gun, AccuracySession
 import asyncio
@@ -18,7 +18,7 @@ class SessionValidationService:
     @staticmethod
     def validate_ammo_gun_compatibility(ammo: Ammo, gun: Gun) -> bool:
         if not ammo.caliber or not gun.caliber:
-            return False
+            return True
         
         ammo_caliber = ammo.caliber.lower().replace(" ", "").replace(".", "")
         gun_caliber = gun.caliber.lower().replace(" ", "").replace(".", "")
@@ -154,6 +154,13 @@ class SessionService:
         query = query.where(model.user_id == user.user_id)
         if user.is_guest and hasattr(model, "expires_at"):
             query = query.where(or_(model.expires_at.is_(None), model.expires_at > datetime.utcnow()))
+        if model is ShootingSession:
+            query = query.where(
+                or_(
+                    model.notes.is_(None),
+                    not_(func.lower(model.notes).like("sesja celnościowa%"))
+                )
+            )
         return query
 
     @staticmethod
@@ -174,7 +181,7 @@ class SessionService:
         return query.where(or_(*conditions))
 
     @staticmethod
-    async def _get_gun(session: Session, gun_id: int, user: UserContext) -> Optional[Gun]:
+    async def _get_gun(session: Session, gun_id: str, user: UserContext) -> Optional[Gun]:
         query = select(Gun).where(Gun.id == gun_id)
         if user.role != UserRole.admin:
             query = query.where(Gun.user_id == user.user_id)
@@ -183,7 +190,7 @@ class SessionService:
         return await asyncio.to_thread(lambda: session.exec(query).first())
 
     @staticmethod
-    async def _get_ammo(session: Session, ammo_id: int, user: UserContext) -> Optional[Ammo]:
+    async def _get_ammo(session: Session, ammo_id: str, user: UserContext) -> Optional[Ammo]:
         query = select(Ammo).where(Ammo.id == ammo_id)
         if user.role != UserRole.admin:
             query = query.where(Ammo.user_id == user.user_id)
@@ -223,8 +230,8 @@ class SessionService:
     async def create_cost_session(
         session: Session,
         user: UserContext,
-        gun_id: int,
-        ammo_id: int,
+        gun_id: str,
+        ammo_id: str,
         date_value: Optional[Union[str, date]],
         shots: int
     ) -> Dict[str, Any]:
@@ -264,8 +271,8 @@ class SessionService:
     async def create_accuracy_session(
         session: Session,
         user: UserContext,
-        gun_id: int,
-        ammo_id: int,
+        gun_id: str,
+        ammo_id: str,
         date_value: Optional[Union[str, date]],
         distance_m: int,
         shots: int,
