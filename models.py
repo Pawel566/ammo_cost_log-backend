@@ -1,7 +1,6 @@
 from sqlmodel import SQLModel, Field, Relationship
 from typing import Optional, List
-from datetime import date as Date
-from decimal import Decimal
+from datetime import date as Date, datetime
 
 
 class GunBase(SQLModel):
@@ -9,14 +8,6 @@ class GunBase(SQLModel):
     caliber: Optional[str] = Field(default=None, max_length=20)
     type: Optional[str] = Field(default=None, max_length=50)
     notes: Optional[str] = Field(default=None, max_length=500)
-
-
-class GunCreate(GunBase):
-    pass
-
-
-class GunRead(GunBase):
-    id: int
 
 
 class GunUpdate(SQLModel):
@@ -31,14 +22,6 @@ class AmmoBase(SQLModel):
     caliber: Optional[str] = Field(default=None, max_length=20)
     price_per_unit: float = Field(gt=0)
     units_in_package: Optional[int] = Field(default=None, ge=0)
-
-
-class AmmoCreate(AmmoBase):
-    pass
-
-
-class AmmoRead(AmmoBase):
-    id: int
 
 
 class AmmoUpdate(SQLModel):
@@ -57,14 +40,6 @@ class ShootingSessionBase(SQLModel):
     notes: Optional[str] = Field(default=None, max_length=500)
 
 
-class ShootingSessionCreate(ShootingSessionBase):
-    pass
-
-
-class ShootingSessionRead(ShootingSessionBase):
-    id: int
-
-
 class AccuracySessionBase(SQLModel):
     gun_id: int = Field(foreign_key="guns.id")
     ammo_id: int = Field(foreign_key="ammo.id")
@@ -76,45 +51,37 @@ class AccuracySessionBase(SQLModel):
     ai_comment: Optional[str] = Field(default=None, max_length=1000)
 
 
-class AccuracySessionCreate(AccuracySessionBase):
-    pass
-
-
-class AccuracySessionRead(AccuracySessionBase):
-    id: int
-
-
 class Gun(GunBase, table=True):
     __tablename__ = "guns"
-    
     id: Optional[int] = Field(default=None, primary_key=True)
-    
+    user_id: str = Field(index=True, max_length=64)
+    expires_at: Optional[datetime] = Field(default=None, nullable=True)
     sessions: List["ShootingSession"] = Relationship(back_populates="gun")
     accuracy_sessions: List["AccuracySession"] = Relationship(back_populates="gun")
 
 
 class Ammo(AmmoBase, table=True):
     __tablename__ = "ammo"
-    
     id: Optional[int] = Field(default=None, primary_key=True)
-    
+    user_id: str = Field(index=True, max_length=64)
+    expires_at: Optional[datetime] = Field(default=None, nullable=True)
     sessions: List["ShootingSession"] = Relationship(back_populates="ammo")
     accuracy_sessions: List["AccuracySession"] = Relationship(back_populates="ammo")
 
 
 class ShootingSession(ShootingSessionBase, table=True):
     __tablename__ = "sessions"
-    
     id: Optional[int] = Field(default=None, primary_key=True)
-    
+    user_id: str = Field(index=True, max_length=64)
+    expires_at: Optional[datetime] = Field(default=None, nullable=True)
     gun: Optional[Gun] = Relationship(back_populates="sessions")
     ammo: Optional[Ammo] = Relationship(back_populates="sessions")
 
 
 class AccuracySession(AccuracySessionBase, table=True):
     __tablename__ = "accuracy_sessions"
-    
     id: Optional[int] = Field(default=None, primary_key=True)
-    
+    user_id: str = Field(index=True, max_length=64)
+    expires_at: Optional[datetime] = Field(default=None, nullable=True)
     gun: Optional[Gun] = Relationship(back_populates="accuracy_sessions")
     ammo: Optional[Ammo] = Relationship(back_populates="accuracy_sessions")

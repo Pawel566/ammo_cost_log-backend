@@ -4,16 +4,16 @@ from database import init_db
 from routers import guns, ammo, sessions, auth
 import logging
 import os
+from settings import settings
 
-# Konfiguracja logowania
 logging.basicConfig(
-    level=logging.INFO if os.getenv("DEBUG", "false").lower() != "true" else logging.DEBUG,
+    level=logging.DEBUG if settings.debug else logging.INFO,
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 )
 
 app = FastAPI(
-    title="Ammo Cost Log API", 
-    version="0.2.0",
+    title="Ammo Cost Log API",
+    version="0.3.0",
     description="API do zarządzania kosztami amunicji i sesjami strzeleckimi"
 )
 
@@ -36,7 +36,7 @@ app.include_router(auth.router, prefix="/api", tags=["Uwierzytelnianie"])
 
 @app.get("/")
 def root():
-    return {"message": "Ammo Cost Log API", "version": "0.2.0"}
+    return {"message": "Ammo Cost Log API", "version": "0.3.0"}
 
 @app.get("/health")
 def health_check():
