@@ -49,7 +49,7 @@ class GunService:
         count_query = filtered_query.with_only_columns(func.count(Gun.id)).order_by(None)
 
         def _run():
-            total = session.exec(count_query).one()[0]
+            total = session.exec(count_query).one()
             items = session.exec(filtered_query.offset(offset).limit(limit)).all()
             return total, items
 
