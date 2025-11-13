@@ -33,7 +33,7 @@ class AmmoService:
         )
 
     @staticmethod
-    async def _get_single_ammo(session: Session, ammo_id: int, user: UserContext) -> Ammo:
+    async def _get_single_ammo(session: Session, ammo_id: str, user: UserContext) -> Ammo:
         query = AmmoService._query_for_user(user).where(Ammo.id == ammo_id)
         ammo = await asyncio.to_thread(lambda: session.exec(query).first())
         if not ammo:
@@ -55,7 +55,7 @@ class AmmoService:
         return {"total": total, "items": items}
 
     @staticmethod
-    async def get_ammo_by_id(session: Session, ammo_id: int, user: UserContext) -> Ammo:
+    async def get_ammo_by_id(session: Session, ammo_id: str, user: UserContext) -> Ammo:
         return await AmmoService._get_single_ammo(session, ammo_id, user)
 
     @staticmethod
@@ -70,7 +70,7 @@ class AmmoService:
         return ammo
 
     @staticmethod
-    async def update_ammo(session: Session, ammo_id: int, ammo_data: AmmoUpdate, user: UserContext) -> Ammo:
+    async def update_ammo(session: Session, ammo_id: str, ammo_data: AmmoUpdate, user: UserContext) -> Ammo:
         ammo = await AmmoService._get_single_ammo(session, ammo_id, user)
         ammo_dict = ammo_data.model_dump(exclude_unset=True)
         for key, value in ammo_dict.items():
@@ -85,14 +85,14 @@ class AmmoService:
         return ammo
 
     @staticmethod
-    async def delete_ammo(session: Session, ammo_id: int, user: UserContext) -> dict:
+    async def delete_ammo(session: Session, ammo_id: str, user: UserContext) -> dict:
         ammo = await AmmoService._get_single_ammo(session, ammo_id, user)
         await asyncio.to_thread(session.delete, ammo)
         await asyncio.to_thread(session.commit)
         return {"message": f"Amunicja o ID {ammo_id} została usunięta"}
 
     @staticmethod
-    async def add_ammo_quantity(session: Session, ammo_id: int, amount: int, user: UserContext) -> Ammo:
+    async def add_ammo_quantity(session: Session, ammo_id: str, amount: int, user: UserContext) -> Ammo:
         ammo = await AmmoService._get_single_ammo(session, ammo_id, user)
         current = ammo.units_in_package or 0
         ammo.units_in_package = current + amount

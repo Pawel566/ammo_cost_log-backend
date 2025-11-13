@@ -5,8 +5,8 @@ from schemas.pagination import PaginatedResponse
 
 
 class SessionCreate(BaseModel):
-    gun_id: int = Field(gt=0)
-    ammo_id: int = Field(gt=0)
+    gun_id: str = Field(min_length=1)
+    ammo_id: str = Field(min_length=1)
     date: Optional[str] = None
     shots: int = Field(gt=0)
 
@@ -18,9 +18,9 @@ class AccuracySessionCreate(SessionCreate):
 
 
 class ShootingSessionRead(BaseModel):
-    id: int
-    gun_id: int
-    ammo_id: int
+    id: str
+    gun_id: str
+    ammo_id: str
     date: date
     shots: int = Field(gt=0)
     cost: float = Field(ge=0)
@@ -32,9 +32,9 @@ class ShootingSessionRead(BaseModel):
 
 
 class AccuracySessionRead(BaseModel):
-    id: int
-    gun_id: int
-    ammo_id: int
+    id: str
+    gun_id: str
+    ammo_id: str
     date: date
     distance_m: int = Field(gt=0)
     hits: int = Field(ge=0)

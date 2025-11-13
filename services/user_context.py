@@ -1,6 +1,6 @@
 from enum import Enum
 from datetime import datetime, timedelta
-from typing import Optional
+from typing import Optional, Any
 from pydantic import BaseModel
 from settings import settings
 
@@ -19,6 +19,10 @@ class UserContext(BaseModel):
     expires_at: Optional[datetime] = None
     email: Optional[str] = None
     username: Optional[str] = None
+
+    def model_post_init(self, __context: Any) -> None:
+        if self.is_guest and self.expires_at is None:
+            self.expires_at = calculate_guest_expiration()
 
 
 def calculate_guest_expiration() -> datetime:

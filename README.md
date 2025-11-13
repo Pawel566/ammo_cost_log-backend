@@ -11,6 +11,7 @@ Backend do aplikacji zarządzania strzelectwem z inteligentnym asystentem AI.
 - **Analiza celności** - pomiar wyników z komentarzami AI (`gpt-4o-mini`)
 - **Statystyki** - miesięczne podsumowania i analizy (z paginacją `limit`/`offset`/`search`)
 - **Uwierzytelnianie** - Supabase Auth z szczegółową obsługą błędów
+- **UUID identyfikatory** - wszystkie zasoby korzystają z globalnie unikalnych ID
 
 ## 🛠️ Technologie
 

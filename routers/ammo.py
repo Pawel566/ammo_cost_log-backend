@@ -27,7 +27,7 @@ async def get_ammo(
 
 @router.get("/{ammo_id}", response_model=AmmoRead)
 async def get_ammo_by_id(
-    ammo_id: int,
+    ammo_id: str,
     session: Session = Depends(get_session),
     user: UserContext = Depends(role_required([UserRole.guest, UserRole.user, UserRole.admin]))
 ):
@@ -43,7 +43,7 @@ async def add_ammo(
 
 @router.put("/{ammo_id}", response_model=AmmoRead)
 async def update_ammo(
-    ammo_id: int,
+    ammo_id: str,
     ammo_data: AmmoUpdate,
     session: Session = Depends(get_session),
     user: UserContext = Depends(role_required([UserRole.guest, UserRole.user, UserRole.admin]))
@@ -52,7 +52,7 @@ async def update_ammo(
 
 @router.delete("/{ammo_id}")
 async def delete_ammo(
-    ammo_id: int,
+    ammo_id: str,
     session: Session = Depends(get_session),
     user: UserContext = Depends(role_required([UserRole.guest, UserRole.user, UserRole.admin]))
 ):
@@ -60,7 +60,7 @@ async def delete_ammo(
 
 @router.post("/{ammo_id}/add", response_model=AmmoRead)
 async def add_ammo_quantity(
-    ammo_id: int,
+    ammo_id: str,
     payload: QuantityPayload,
     session: Session = Depends(get_session),
     user: UserContext = Depends(role_required([UserRole.guest, UserRole.user, UserRole.admin]))
