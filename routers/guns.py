@@ -11,7 +11,7 @@ from services.user_context import UserContext, UserRole
 
 router = APIRouter()
 
-@router.get("/", response_model=PaginatedResponse[GunRead])
+@router.get("", response_model=PaginatedResponse[GunRead])
 async def get_guns(
     session: Session = Depends(get_session),
     user: UserContext = Depends(role_required([UserRole.guest, UserRole.user, UserRole.admin])),
@@ -29,7 +29,7 @@ async def get_gun(
 ):
     return await GunService.get_gun_by_id(session, gun_id, user)
 
-@router.post("/", response_model=GunRead)
+@router.post("", response_model=GunRead)
 async def add_gun(
     gun_data: GunCreate,
     session: Session = Depends(get_session),

@@ -20,7 +20,7 @@ class MonthlySummaryResponse(PaginatedResponse[MonthlySummary]):
     pass
 
 
-@router.get("/", response_model=SessionsListResponse)
+@router.get("", response_model=SessionsListResponse)
 async def get_all_sessions(
     session: Session = Depends(get_session),
     user: UserContext = Depends(role_required([UserRole.guest, UserRole.user, UserRole.admin])),
