@@ -202,12 +202,12 @@ class SessionService:
         accuracy_count_query = accuracy_query.with_only_columns(func.count(AccuracySession.id)).order_by(None)
 
         def _run_cost():
-            total = session.exec(cost_count_query).one()[0]
+            total = session.exec(cost_count_query).one()
             items = session.exec(cost_query.offset(offset).limit(limit)).all()
             return total, items
 
         def _run_accuracy():
-            total = session.exec(accuracy_count_query).one()[0]
+            total = session.exec(accuracy_count_query).one()
             items = session.exec(accuracy_query.offset(offset).limit(limit)).all()
             return total, items
 
