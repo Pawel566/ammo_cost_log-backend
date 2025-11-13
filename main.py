@@ -23,6 +23,7 @@ app.add_middleware(
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
+    expose_headers=["X-Guest-Session", "X-Guest-Session-Expires-At"],
 )
 
 @app.on_event("startup")
