@@ -13,7 +13,7 @@ logging.basicConfig(
 
 app = FastAPI(
     title="Ammo Cost Log API",
-    version="0.3.0",
+    version="0.3.1",
     description="API do zarządzania kosztami amunicji i sesjami strzeleckimi"
 )
 
@@ -37,7 +37,7 @@ app.include_router(auth.router, prefix="/api", tags=["Uwierzytelnianie"])
 
 @app.get("/")
 def root():
-    return {"message": "Ammo Cost Log API", "version": "0.3.0"}
+    return {"message": "Ammo Cost Log API", "version": "0.3.1"}
 
 @app.get("/health")
 def health_check():

@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.3.1] – 2025-01-XX
+### Dodano
+- Pełny system autoryzacji użytkowników (rejestracja, logowanie, wylogowanie)
+- Endpoint `/auth/me` do pobierania danych aktualnego użytkownika
+- Walidacja duplikatów emaili przy rejestracji (status 409)
+
+### Zmieniono
+- Rejestracja zwraca tokeny, ale nie loguje automatycznie użytkownika
+
 ## [0.3.0] – 2025-11-13
 ### Dodano
 - Role użytkowników (guest, user, admin) oraz automatyczne sesje gościa
