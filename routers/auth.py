@@ -5,6 +5,7 @@ from supabase import create_client, Client
 import asyncio
 from typing import Optional, Iterable, Union
 from uuid import uuid4
+from datetime import datetime
 from services.error_handler import ErrorHandler
 from services.user_context import UserContext, UserRole, calculate_guest_expiration
 from settings import settings
@@ -95,20 +96,38 @@ async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(s
 async def get_user_context(
     response: Response,
     credentials: Optional[HTTPAuthorizationCredentials] = Depends(security),
-    guest_session_id: Optional[str] = Header(default=None, alias="X-Guest-Session")
+    guest_id: Optional[str] = Header(default=None, alias="X-Guest-Id"),
+    guest_id_expires_at: Optional[str] = Header(default=None, alias="X-Guest-Id-Expires-At")
 ) -> UserContext:
     if credentials:
         return await _fetch_supabase_user(credentials.credentials)
-    session_id = guest_session_id or str(uuid4())
-    expiration = calculate_guest_expiration()
-    response.headers["X-Guest-Session"] = session_id
-    response.headers["X-Guest-Session-Expires-At"] = expiration.isoformat()
+    expires_at = None
+    if guest_id and guest_id_expires_at:
+        try:
+            expires_at_str = guest_id_expires_at.replace('Z', '+00:00')
+            expires_at = datetime.fromisoformat(expires_at_str)
+            if expires_at.tzinfo:
+                expires_at = expires_at.replace(tzinfo=None)
+            if expires_at < datetime.utcnow():
+                guest_id = None
+                expires_at = None
+        except (ValueError, AttributeError):
+            guest_id = None
+            expires_at = None
+    if not guest_id:
+        guest_id = str(uuid4())
+        expires_at = calculate_guest_expiration()
+    else:
+        if not expires_at:
+            expires_at = calculate_guest_expiration()
+    response.headers["X-Guest-Id"] = guest_id
+    response.headers["X-Guest-Id-Expires-At"] = expires_at.isoformat()
     return UserContext(
-        user_id=session_id,
+        user_id=guest_id,
         role=UserRole.guest,
         is_guest=True,
-        guest_session_id=session_id,
-        expires_at=expiration
+        guest_session_id=guest_id,
+        expires_at=expires_at
     )
 
 def role_required(allowed_roles: Iterable[Union[UserRole, str]]):
