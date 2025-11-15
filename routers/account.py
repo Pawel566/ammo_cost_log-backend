@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Header
 from sqlmodel import Session, select
 from schemas.account import ChangePasswordRequest, ChangeEmailRequest, UpdateSkillLevelRequest
 from database import get_session
@@ -7,6 +7,8 @@ from services.account_service import AccountService
 from services.user_context import UserContext
 from routers.auth import supabase
 from models import User
+from fastapi.security import HTTPAuthorizationCredentials
+from routers.auth import security
 import asyncio
 
 router = APIRouter()
@@ -35,18 +37,26 @@ async def update_skill_level(
 async def change_password(
     data: ChangePasswordRequest,
     session: Session = Depends(get_session),
-    user: UserContext = Depends(get_current_user)
+    user: UserContext = Depends(get_current_user),
+    credentials: HTTPAuthorizationCredentials = Depends(security)
 ):
-    return await AccountService.change_password(session, user, supabase, data.old_password, data.new_password)
+    if not credentials:
+        from fastapi import HTTPException
+        raise HTTPException(status_code=401, detail="Brak tokena uwierzytelniającego")
+    return await AccountService.change_password(session, user, supabase, credentials.credentials, data.old_password, data.new_password)
 
 
 @router.post("/change-email")
 async def change_email(
     data: ChangeEmailRequest,
     session: Session = Depends(get_session),
-    user: UserContext = Depends(get_current_user)
+    user: UserContext = Depends(get_current_user),
+    credentials: HTTPAuthorizationCredentials = Depends(security)
 ):
-    return await AccountService.change_email(session, user, supabase, data.new_email)
+    if not credentials:
+        from fastapi import HTTPException
+        raise HTTPException(status_code=401, detail="Brak tokena uwierzytelniającego")
+    return await AccountService.change_email(session, user, supabase, credentials.credentials, data.new_email)
 
 
 @router.post("/delete")

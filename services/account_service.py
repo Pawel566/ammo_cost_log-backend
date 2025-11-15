@@ -10,28 +10,52 @@ from services.error_handler import ErrorHandler
 
 class AccountService:
     @staticmethod
-    async def change_password(session: Session, user: UserContext, supabase: Client, old_password: str, new_password: str) -> Dict[str, str]:
+    async def change_password(session: Session, user: UserContext, supabase: Client, access_token: str, old_password: str, new_password: str) -> Dict[str, str]:
         if not supabase:
             raise HTTPException(status_code=503, detail="Authentication service not available")
         try:
-            await asyncio.to_thread(
-                supabase.auth.update_user,
-                {"password": new_password}
-            )
+            import httpx
+            from settings import settings
+            async with httpx.AsyncClient() as client:
+                response = await client.put(
+                    f"{settings.supabase_url}/auth/v1/user",
+                    headers={
+                        "Authorization": f"Bearer {access_token}",
+                        "apikey": settings.supabase_anon_key,
+                        "Content-Type": "application/json"
+                    },
+                    json={"password": new_password}
+                )
+                if response.status_code != 200:
+                    raise HTTPException(status_code=response.status_code, detail=response.text)
             return {"message": "Hasło zostało zmienione pomyślnie"}
+        except HTTPException:
+            raise
         except Exception as e:
             raise ErrorHandler.handle_supabase_error(e, "change_password")
 
     @staticmethod
-    async def change_email(session: Session, user: UserContext, supabase: Client, new_email: str) -> Dict[str, str]:
+    async def change_email(session: Session, user: UserContext, supabase: Client, access_token: str, new_email: str) -> Dict[str, str]:
         if not supabase:
             raise HTTPException(status_code=503, detail="Authentication service not available")
         try:
-            await asyncio.to_thread(
-                supabase.auth.update_user,
-                {"email": new_email}
-            )
+            import httpx
+            from settings import settings
+            async with httpx.AsyncClient() as client:
+                response = await client.put(
+                    f"{settings.supabase_url}/auth/v1/user",
+                    headers={
+                        "Authorization": f"Bearer {access_token}",
+                        "apikey": settings.supabase_anon_key,
+                        "Content-Type": "application/json"
+                    },
+                    json={"email": new_email}
+                )
+                if response.status_code != 200:
+                    raise HTTPException(status_code=response.status_code, detail=response.text)
             return {"message": "Email został zmieniony pomyślnie"}
+        except HTTPException:
+            raise
         except Exception as e:
             raise ErrorHandler.handle_supabase_error(e, "change_email")
 
