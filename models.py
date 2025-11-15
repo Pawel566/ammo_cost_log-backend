@@ -110,10 +110,10 @@ class Gun(GunBase, table=True):
     user_id: str = Field(index=True, max_length=64)
     expires_at: Optional[datetime] = Field(default=None, nullable=True)
 
-    sessions: "List[ShootingSession]" = Relationship(back_populates="gun", sa_relationship_kwargs={"lazy": "select"})
-    accuracy_sessions: "List[AccuracySession]" = Relationship(back_populates="gun", sa_relationship_kwargs={"lazy": "select"})
-    attachments: "List[Attachment]" = Relationship(back_populates="gun", sa_relationship_kwargs={"lazy": "select"})
-    maintenance: "List[Maintenance]" = Relationship(back_populates="gun", sa_relationship_kwargs={"lazy": "select"})
+    sessions: List["ShootingSession"] = Relationship(back_populates="gun", sa_relationship_kwargs={"lazy": "select"})
+    accuracy_sessions: List["AccuracySession"] = Relationship(back_populates="gun", sa_relationship_kwargs={"lazy": "select"})
+    attachments: List["Attachment"] = Relationship(back_populates="gun", sa_relationship_kwargs={"lazy": "select"})
+    maintenance: List["Maintenance"] = Relationship(back_populates="gun", sa_relationship_kwargs={"lazy": "select"})
 
 
 class Ammo(AmmoBase, table=True):
@@ -123,8 +123,8 @@ class Ammo(AmmoBase, table=True):
     user_id: str = Field(index=True, max_length=64)
     expires_at: Optional[datetime] = Field(default=None, nullable=True)
 
-    sessions: "List[ShootingSession]" = Relationship(back_populates="ammo", sa_relationship_kwargs={"lazy": "select"})
-    accuracy_sessions: "List[AccuracySession]" = Relationship(back_populates="ammo", sa_relationship_kwargs={"lazy": "select"})
+    sessions: List["ShootingSession"] = Relationship(back_populates="ammo", sa_relationship_kwargs={"lazy": "select"})
+    accuracy_sessions: List["AccuracySession"] = Relationship(back_populates="ammo", sa_relationship_kwargs={"lazy": "select"})
 
 
 class ShootingSession(ShootingSessionBase, table=True):
@@ -134,8 +134,8 @@ class ShootingSession(ShootingSessionBase, table=True):
     user_id: str = Field(index=True, max_length=64)
     expires_at: Optional[datetime] = Field(default=None, nullable=True)
 
-    gun: "Optional[Gun]" = Relationship(back_populates="sessions", sa_relationship_kwargs={"lazy": "select"})
-    ammo: "Optional[Ammo]" = Relationship(back_populates="sessions", sa_relationship_kwargs={"lazy": "select"})
+    gun: Optional["Gun"] = Relationship(back_populates="sessions", sa_relationship_kwargs={"lazy": "select"})
+    ammo: Optional["Ammo"] = Relationship(back_populates="sessions", sa_relationship_kwargs={"lazy": "select"})
 
 
 class AccuracySession(AccuracySessionBase, table=True):
@@ -145,8 +145,8 @@ class AccuracySession(AccuracySessionBase, table=True):
     user_id: str = Field(index=True, max_length=64)
     expires_at: Optional[datetime] = Field(default=None, nullable=True)
 
-    gun: "Optional[Gun]" = Relationship(back_populates="accuracy_sessions", sa_relationship_kwargs={"lazy": "select"})
-    ammo: "Optional[Ammo]" = Relationship(back_populates="accuracy_sessions", sa_relationship_kwargs={"lazy": "select"})
+    gun: Optional["Gun"] = Relationship(back_populates="accuracy_sessions", sa_relationship_kwargs={"lazy": "select"})
+    ammo: Optional["Ammo"] = Relationship(back_populates="accuracy_sessions", sa_relationship_kwargs={"lazy": "select"})
 
 
 class Attachment(AttachmentBase, table=True):
@@ -156,7 +156,7 @@ class Attachment(AttachmentBase, table=True):
     user_id: str = Field(index=True, max_length=64)
     expires_at: Optional[datetime] = Field(default=None, nullable=True)
 
-    gun: "Optional[Gun]" = Relationship(back_populates="attachments", sa_relationship_kwargs={"lazy": "select"})
+    gun: Optional["Gun"] = Relationship(back_populates="attachments", sa_relationship_kwargs={"lazy": "select"})
 
 
 class Maintenance(MaintenanceBase, table=True):
@@ -166,7 +166,7 @@ class Maintenance(MaintenanceBase, table=True):
     user_id: str = Field(index=True, max_length=64)
     expires_at: Optional[datetime] = Field(default=None, nullable=True)
 
-    gun: "Optional[Gun]" = Relationship(back_populates="maintenance", sa_relationship_kwargs={"lazy": "select"})
+    gun: Optional["Gun"] = Relationship(back_populates="maintenance", sa_relationship_kwargs={"lazy": "select"})
 
 
 class UserSettings(UserSettingsBase, table=True):
