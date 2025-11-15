@@ -14,7 +14,6 @@ class SessionCreate(BaseModel):
 class AccuracySessionCreate(SessionCreate):
     distance_m: int = Field(gt=0)
     hits: int = Field(ge=0)
-    openai_api_key: Optional[str] = None
 
 
 class ShootingSessionRead(BaseModel):

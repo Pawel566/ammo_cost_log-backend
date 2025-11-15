@@ -7,8 +7,6 @@ from fastapi import HTTPException
 from models import ShootingSession, Ammo, Gun, AccuracySession
 import asyncio
 import logging
-from openai import OpenAI
-from services.error_handler import ErrorHandler
 from services.user_context import UserContext, UserRole
 
 logger = logging.getLogger(__name__)
@@ -96,53 +94,6 @@ class SessionCalculationService:
                 status_code=400,
                 detail="Data musi być w formacie YYYY-MM-DD (np. 2025-10-23)"
             )
-
-
-class AIService:
-    @staticmethod
-    async def generate_comment(gun: Gun, distance: int, hits: int, shots: int, accuracy: float, api_key: Optional[str] = None) -> str:
-        logger.info(f"Generowanie komentarza AI dla {gun.name}, celność: {accuracy}%")
-        
-        if not api_key:
-            logger.warning("Brak klucza API OpenAI od użytkownika")
-            return "Brak klucza API OpenAI — dodaj klucz w formularzu aby otrzymać komentarz AI."
-        
-        try:
-            client_with_key = OpenAI(api_key=api_key)
-        except Exception as e:
-            return ErrorHandler.handle_openai_error(e, "openai_client_init")
-        
-        try:
-            prompt = (
-                f"Ocena wyników strzeleckich:\n"
-                f"Broń: {gun.name}, kaliber {gun.caliber}\n"
-                f"Dystans: {distance} m\n"
-                f"Trafienia: {hits} z {shots} strzałów\n"
-                f"Celność: {accuracy}%\n"
-                f"Napisz krótki komentarz po polsku — maks 2 zdania z oceną i sugestią poprawy."
-            )
-
-            messages = [
-                {"role": "system", "content": "Jesteś instruktorem strzelectwa."},
-                {"role": "user", "content": prompt}
-            ]
-
-            logger.info(f"Wysyłanie zapytania do OpenAI: {prompt[:100]}...")
-            
-            def _create_completion():
-                return client_with_key.chat.completions.create(
-                    model="gpt-4o-mini",
-                    messages=messages
-                )
-            
-            response = await asyncio.to_thread(_create_completion)
-            
-            result = response.choices[0].message.content.strip()
-            logger.info(f"Otrzymano odpowiedź AI: {result}")
-            return result
-            
-        except Exception as e:
-            return ErrorHandler.handle_openai_error(e, "generate_ai_comment")
 
 
 class SessionService:
@@ -276,8 +227,7 @@ class SessionService:
         date_value: Optional[Union[str, date]],
         distance_m: int,
         shots: int,
-        hits: int,
-        api_key: Optional[str] = None
+        hits: int
     ) -> Dict[str, Any]:
         parsed_date = SessionCalculationService.parse_date(date_value)
         gun = await SessionService._get_gun(session, gun_id, user)
@@ -286,7 +236,6 @@ class SessionService:
         cost = SessionCalculationService.calculate_cost(ammo.price_per_unit, shots)
         ammo.units_in_package -= shots
         accuracy = SessionCalculationService.calculate_accuracy(hits, shots)
-        ai_comment = await AIService.generate_comment(gun, distance_m, hits, shots, accuracy, api_key)
         target_expiration = user.expires_at if user.is_guest else gun.expires_at
         if user.is_guest:
             ammo.expires_at = target_expiration
@@ -312,7 +261,7 @@ class SessionService:
             hits=hits,
             shots=shots,
             accuracy_percent=accuracy,
-            ai_comment=ai_comment,
+            ai_comment=None,
             user_id=gun.user_id,
             expires_at=target_expiration
         )
