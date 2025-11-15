@@ -60,14 +60,21 @@ class AmmoService:
 
     @staticmethod
     async def create_ammo(session: Session, ammo_data: AmmoCreate, user: UserContext) -> Ammo:
-        payload = ammo_data.model_dump()
-        ammo = Ammo(**payload, user_id=user.user_id)
-        if user.is_guest:
-            ammo.expires_at = user.expires_at
-        session.add(ammo)
-        await asyncio.to_thread(session.commit)
-        await asyncio.to_thread(session.refresh, ammo)
-        return ammo
+        try:
+            payload = ammo_data.model_dump(exclude_none=True)
+            ammo = Ammo(**payload, user_id=user.user_id)
+            if user.is_guest:
+                ammo.expires_at = user.expires_at
+            session.add(ammo)
+            await asyncio.to_thread(session.commit)
+            await asyncio.to_thread(session.refresh, ammo)
+            return ammo
+        except Exception as e:
+            await asyncio.to_thread(session.rollback)
+            raise HTTPException(
+                status_code=500,
+                detail=f"Błąd podczas tworzenia amunicji: {str(e)}"
+            )
 
     @staticmethod
     async def update_ammo(session: Session, ammo_id: str, ammo_data: AmmoUpdate, user: UserContext) -> Ammo:
