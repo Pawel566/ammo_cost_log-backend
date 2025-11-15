@@ -5,6 +5,7 @@ from routers import guns, ammo, sessions, auth
 import logging
 import os
 from settings import settings
+import models
 
 logging.basicConfig(
     level=logging.DEBUG if settings.debug else logging.INFO,
