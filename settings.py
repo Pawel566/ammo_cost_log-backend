@@ -1,5 +1,10 @@
 from typing import Optional
-from pydantic_settings import BaseSettings, SettingsConfigDict
+try:
+    from pydantic_settings import BaseSettings, SettingsConfigDict
+    USE_MODEL_CONFIG = True
+except ImportError:
+    from pydantic import BaseSettings
+    USE_MODEL_CONFIG = False
 
 
 class Settings(BaseSettings):
@@ -10,7 +15,13 @@ class Settings(BaseSettings):
     debug: bool = False
     guest_session_ttl_hours: int = 24
 
-    model_config = SettingsConfigDict(env_file=".env", extra="ignore", env_file_encoding="utf-8")
+    if USE_MODEL_CONFIG:
+        model_config = SettingsConfigDict(env_file=".env", extra="ignore", env_file_encoding="utf-8")
+    else:
+        class Config:
+            env_file = ".env"
+            extra = "ignore"
+            env_file_encoding = "utf-8"
 
 
 settings = Settings()
