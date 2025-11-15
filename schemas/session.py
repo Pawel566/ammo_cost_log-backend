@@ -7,7 +7,7 @@ from schemas.pagination import PaginatedResponse
 class SessionCreate(BaseModel):
     gun_id: str = Field(min_length=1)
     ammo_id: str = Field(min_length=1)
-    date: Optional[str] = None
+    date: Optional[str] = Field(default=None)
     shots: int = Field(gt=0)
 
 
@@ -23,9 +23,9 @@ class ShootingSessionRead(BaseModel):
     date: date
     shots: int = Field(gt=0)
     cost: float = Field(ge=0)
-    notes: Optional[str] = None
+    notes: Optional[str] = Field(default=None)
     user_id: str
-    expires_at: Optional[datetime] = None
+    expires_at: Optional[datetime] = Field(default=None)
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -38,10 +38,10 @@ class AccuracySessionRead(BaseModel):
     distance_m: int = Field(gt=0)
     hits: int = Field(ge=0)
     shots: int = Field(gt=0)
-    accuracy_percent: Optional[float] = None
-    ai_comment: Optional[str] = None
+    accuracy_percent: Optional[float] = Field(default=None)
+    ai_comment: Optional[str] = Field(default=None)
     user_id: str
-    expires_at: Optional[datetime] = None
+    expires_at: Optional[datetime] = Field(default=None)
 
     model_config = ConfigDict(from_attributes=True)
 
