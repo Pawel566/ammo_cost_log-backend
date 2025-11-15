@@ -6,7 +6,6 @@ from uuid import uuid4
 from datetime import date, datetime
 from enum import Enum
 from pydantic import ConfigDict
-from sqlalchemy.orm import Mapped
 
 
 class GunBase(SQLModel):
@@ -111,10 +110,10 @@ class Gun(GunBase, table=True):
     user_id: str = Field(index=True, max_length=64)
     expires_at: Optional[datetime] = Field(default=None, nullable=True)
 
-    sessions: Mapped[List["ShootingSession"]] = Relationship(back_populates="gun")
-    accuracy_sessions: Mapped[List["AccuracySession"]] = Relationship(back_populates="gun")
-    attachments: Mapped[List["Attachment"]] = Relationship(back_populates="gun")
-    maintenance: Mapped[List["Maintenance"]] = Relationship(back_populates="gun")
+    sessions: "List[ShootingSession]" = Relationship(back_populates="gun", sa_relationship_kwargs={"lazy": "select"})
+    accuracy_sessions: "List[AccuracySession]" = Relationship(back_populates="gun", sa_relationship_kwargs={"lazy": "select"})
+    attachments: "List[Attachment]" = Relationship(back_populates="gun", sa_relationship_kwargs={"lazy": "select"})
+    maintenance: "List[Maintenance]" = Relationship(back_populates="gun", sa_relationship_kwargs={"lazy": "select"})
 
 
 class Ammo(AmmoBase, table=True):
@@ -124,8 +123,8 @@ class Ammo(AmmoBase, table=True):
     user_id: str = Field(index=True, max_length=64)
     expires_at: Optional[datetime] = Field(default=None, nullable=True)
 
-    sessions: Mapped[List["ShootingSession"]] = Relationship(back_populates="ammo")
-    accuracy_sessions: Mapped[List["AccuracySession"]] = Relationship(back_populates="ammo")
+    sessions: "List[ShootingSession]" = Relationship(back_populates="ammo", sa_relationship_kwargs={"lazy": "select"})
+    accuracy_sessions: "List[AccuracySession]" = Relationship(back_populates="ammo", sa_relationship_kwargs={"lazy": "select"})
 
 
 class ShootingSession(ShootingSessionBase, table=True):
@@ -135,8 +134,8 @@ class ShootingSession(ShootingSessionBase, table=True):
     user_id: str = Field(index=True, max_length=64)
     expires_at: Optional[datetime] = Field(default=None, nullable=True)
 
-    gun: Mapped[Optional["Gun"]] = Relationship(back_populates="sessions")
-    ammo: Mapped[Optional["Ammo"]] = Relationship(back_populates="sessions")
+    gun: "Optional[Gun]" = Relationship(back_populates="sessions", sa_relationship_kwargs={"lazy": "select"})
+    ammo: "Optional[Ammo]" = Relationship(back_populates="sessions", sa_relationship_kwargs={"lazy": "select"})
 
 
 class AccuracySession(AccuracySessionBase, table=True):
@@ -146,8 +145,8 @@ class AccuracySession(AccuracySessionBase, table=True):
     user_id: str = Field(index=True, max_length=64)
     expires_at: Optional[datetime] = Field(default=None, nullable=True)
 
-    gun: Mapped[Optional["Gun"]] = Relationship(back_populates="accuracy_sessions")
-    ammo: Mapped[Optional["Ammo"]] = Relationship(back_populates="accuracy_sessions")
+    gun: "Optional[Gun]" = Relationship(back_populates="accuracy_sessions", sa_relationship_kwargs={"lazy": "select"})
+    ammo: "Optional[Ammo]" = Relationship(back_populates="accuracy_sessions", sa_relationship_kwargs={"lazy": "select"})
 
 
 class Attachment(AttachmentBase, table=True):
@@ -157,7 +156,7 @@ class Attachment(AttachmentBase, table=True):
     user_id: str = Field(index=True, max_length=64)
     expires_at: Optional[datetime] = Field(default=None, nullable=True)
 
-    gun: Mapped[Optional["Gun"]] = Relationship(back_populates="attachments")
+    gun: "Optional[Gun]" = Relationship(back_populates="attachments", sa_relationship_kwargs={"lazy": "select"})
 
 
 class Maintenance(MaintenanceBase, table=True):
@@ -167,7 +166,7 @@ class Maintenance(MaintenanceBase, table=True):
     user_id: str = Field(index=True, max_length=64)
     expires_at: Optional[datetime] = Field(default=None, nullable=True)
 
-    gun: Mapped[Optional["Gun"]] = Relationship(back_populates="maintenance")
+    gun: "Optional[Gun]" = Relationship(back_populates="maintenance", sa_relationship_kwargs={"lazy": "select"})
 
 
 class UserSettings(UserSettingsBase, table=True):
