@@ -9,7 +9,7 @@ class MaintenanceCreate(BaseModel):
 
 
 class MaintenanceUpdate(BaseModel):
-    date: Optional[date] = None
+    date: Optional[date] = Field(default=None)
     notes: Optional[str] = Field(default=None, max_length=500)
 
 
