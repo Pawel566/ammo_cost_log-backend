@@ -1,7 +1,7 @@
 from enum import Enum
 from datetime import datetime, timedelta
 from typing import Optional, Any
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ConfigDict
 from settings import settings
 
 
@@ -12,6 +12,7 @@ class UserRole(str, Enum):
 
 
 class UserContext(BaseModel):
+    model_config = ConfigDict(arbitrary_types_allowed=True)
     user_id: str
     role: UserRole
     is_guest: bool = False

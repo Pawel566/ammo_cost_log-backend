@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, Query
 from sqlmodel import Session
 from typing import List, Optional
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ConfigDict
 from schemas.ammo import AmmoCreate, AmmoRead
 from schemas.pagination import PaginatedResponse
 from models import AmmoUpdate
@@ -13,6 +13,7 @@ from services.user_context import UserContext, UserRole
 router = APIRouter()
 
 class QuantityPayload(BaseModel):
+    model_config = ConfigDict(arbitrary_types_allowed=True)
     amount: int = Field(gt=0)
 
 @router.get("", response_model=PaginatedResponse[AmmoRead])

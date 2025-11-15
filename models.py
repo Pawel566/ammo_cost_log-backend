@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from sqlmodel import SQLModel, Field, Relationship
 from typing import Optional, List
 from uuid import uuid4
@@ -7,6 +9,7 @@ from pydantic import ConfigDict
 
 
 class GunBase(SQLModel):
+    model_config = ConfigDict(arbitrary_types_allowed=True)
     name: str = Field(min_length=1, max_length=100)
     caliber: Optional[str] = Field(default=None, max_length=20)
     type: Optional[str] = Field(default=None, max_length=50)
@@ -14,6 +17,7 @@ class GunBase(SQLModel):
 
 
 class GunUpdate(SQLModel):
+    model_config = ConfigDict(arbitrary_types_allowed=True)
     name: Optional[str] = Field(default=None, min_length=1, max_length=100)
     caliber: Optional[str] = Field(default=None, max_length=20)
     type: Optional[str] = Field(default=None, max_length=50)
@@ -21,6 +25,7 @@ class GunUpdate(SQLModel):
 
 
 class AmmoBase(SQLModel):
+    model_config = ConfigDict(arbitrary_types_allowed=True)
     name: str = Field(min_length=1, max_length=100)
     caliber: Optional[str] = Field(default=None, max_length=20)
     price_per_unit: float = Field(gt=0)
@@ -28,6 +33,7 @@ class AmmoBase(SQLModel):
 
 
 class AmmoUpdate(SQLModel):
+    model_config = ConfigDict(arbitrary_types_allowed=True)
     name: Optional[str] = Field(default=None, min_length=1, max_length=100)
     caliber: Optional[str] = Field(default=None, max_length=20)
     price_per_unit: Optional[float] = Field(default=None, gt=0)
@@ -35,6 +41,7 @@ class AmmoUpdate(SQLModel):
 
 
 class ShootingSessionBase(SQLModel):
+    model_config = ConfigDict(arbitrary_types_allowed=True)
     gun_id: str = Field(foreign_key="guns.id")
     ammo_id: str = Field(foreign_key="ammo.id")
     date: date
@@ -44,6 +51,7 @@ class ShootingSessionBase(SQLModel):
 
 
 class AccuracySessionBase(SQLModel):
+    model_config = ConfigDict(arbitrary_types_allowed=True)
     gun_id: str = Field(foreign_key="guns.id")
     ammo_id: str = Field(foreign_key="ammo.id")
     date: date
@@ -67,6 +75,7 @@ class AttachmentType(str, Enum):
 
 
 class AttachmentBase(SQLModel):
+    model_config = ConfigDict(arbitrary_types_allowed=True)
     gun_id: str = Field(foreign_key="guns.id")
     type: AttachmentType
     name: str = Field(min_length=1, max_length=100)
@@ -75,6 +84,7 @@ class AttachmentBase(SQLModel):
 
 
 class MaintenanceBase(SQLModel):
+    model_config = ConfigDict(arbitrary_types_allowed=True)
     gun_id: str = Field(foreign_key="guns.id")
     date: date
     notes: Optional[str] = Field(default=None, max_length=500)
@@ -82,12 +92,14 @@ class MaintenanceBase(SQLModel):
 
 
 class UserSettingsBase(SQLModel):
+    model_config = ConfigDict(arbitrary_types_allowed=True)
     ai_mode: str = Field(default="off", max_length=20)
     theme: str = Field(default="dark", max_length=20)
     distance_unit: str = Field(default="m", max_length=2)
 
 
 class UserBase(SQLModel):
+    model_config = ConfigDict(arbitrary_types_allowed=True)
     skill_level: str = Field(default="beginner", max_length=20)
 
 
@@ -159,11 +171,13 @@ class Maintenance(MaintenanceBase, table=True):
 
 class UserSettings(UserSettingsBase, table=True):
     __tablename__ = "user_settings"
+    model_config = ConfigDict(arbitrary_types_allowed=True)
     user_id: str = Field(primary_key=True, max_length=64)
     expires_at: Optional[datetime] = Field(default=None, nullable=True)
 
 
 class User(UserBase, table=True):
     __tablename__ = "users"
+    model_config = ConfigDict(arbitrary_types_allowed=True)
     user_id: str = Field(primary_key=True, max_length=64)
     expires_at: Optional[datetime] = Field(default=None, nullable=True)

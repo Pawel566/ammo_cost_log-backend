@@ -5,6 +5,7 @@ from schemas.pagination import PaginatedResponse
 
 
 class SessionCreate(BaseModel):
+    model_config = ConfigDict(arbitrary_types_allowed=True)
     gun_id: str = Field(min_length=1)
     ammo_id: str = Field(min_length=1)
     date: Optional[str] = Field(default=None)
@@ -17,6 +18,7 @@ class AccuracySessionCreate(SessionCreate):
 
 
 class ShootingSessionRead(BaseModel):
+    model_config = ConfigDict(from_attributes=True, arbitrary_types_allowed=True)
     id: str
     gun_id: str
     ammo_id: str
@@ -27,10 +29,9 @@ class ShootingSessionRead(BaseModel):
     user_id: str
     expires_at: Optional[datetime] = Field(default=None)
 
-    model_config = ConfigDict(from_attributes=True)
-
 
 class AccuracySessionRead(BaseModel):
+    model_config = ConfigDict(from_attributes=True, arbitrary_types_allowed=True)
     id: str
     gun_id: str
     ammo_id: str
@@ -43,16 +44,16 @@ class AccuracySessionRead(BaseModel):
     user_id: str
     expires_at: Optional[datetime] = Field(default=None)
 
-    model_config = ConfigDict(from_attributes=True)
-
 
 class MonthlySummary(BaseModel):
+    model_config = ConfigDict(arbitrary_types_allowed=True)
     month: str
     total_cost: float
     total_shots: int
 
 
 class SessionsListResponse(BaseModel):
+    model_config = ConfigDict(arbitrary_types_allowed=True)
     cost_sessions: PaginatedResponse[ShootingSessionRead]
     accuracy_sessions: PaginatedResponse[AccuracySessionRead]
 
