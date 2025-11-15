@@ -1,6 +1,6 @@
 from fastapi import APIRouter, HTTPException, Depends, Header, Response
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 from supabase import create_client, Client
 import asyncio
 from typing import Optional, Iterable, Union
@@ -27,15 +27,18 @@ else:
     print("Warning: Supabase credentials not configured. Authentication endpoints will be disabled.")
 
 class LoginRequest(BaseModel):
+    model_config = ConfigDict(arbitrary_types_allowed=True)
     email: str
     password: str
 
 class RegisterRequest(BaseModel):
+    model_config = ConfigDict(arbitrary_types_allowed=True)
     email: str
     password: str
     username: str
 
 class AuthResponse(BaseModel):
+    model_config = ConfigDict(arbitrary_types_allowed=True)
     access_token: str
     refresh_token: str
     user_id: str
@@ -45,12 +48,14 @@ class AuthResponse(BaseModel):
 
 
 class UserInfo(BaseModel):
+    model_config = ConfigDict(arbitrary_types_allowed=True)
     user_id: str
     email: str
     username: str
     role: UserRole
 
 class RefreshRequest(BaseModel):
+    model_config = ConfigDict(arbitrary_types_allowed=True)
     refresh_token: str
 
 def _resolve_role(metadata: Optional[dict]) -> UserRole:
