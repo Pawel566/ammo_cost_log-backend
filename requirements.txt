@@ -1,7 +1,7 @@
 fastapi==0.109.2
 uvicorn[standard]==0.27.1
 sqlmodel==0.0.14
-sqlalchemy==1.4.52
+sqlalchemy>=2.0.0,<2.1.0
 python-dotenv==1.0.1
 requests==2.31.0
 pydantic==2.5.3
