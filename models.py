@@ -3,6 +3,7 @@ from typing import Optional, List
 from uuid import uuid4
 from datetime import date, datetime
 from enum import Enum
+from pydantic import ConfigDict
 
 
 class GunBase(SQLModel):
@@ -92,6 +93,7 @@ class UserBase(SQLModel):
 
 class Gun(GunBase, table=True):
     __tablename__ = "guns"
+    model_config = ConfigDict(arbitrary_types_allowed=True)
     id: str = Field(default_factory=lambda: str(uuid4()), primary_key=True)
     user_id: str = Field(index=True, max_length=64)
     expires_at: Optional[datetime] = Field(default=None, nullable=True)
@@ -104,6 +106,7 @@ class Gun(GunBase, table=True):
 
 class Ammo(AmmoBase, table=True):
     __tablename__ = "ammo"
+    model_config = ConfigDict(arbitrary_types_allowed=True)
     id: str = Field(default_factory=lambda: str(uuid4()), primary_key=True)
     user_id: str = Field(index=True, max_length=64)
     expires_at: Optional[datetime] = Field(default=None, nullable=True)
@@ -114,6 +117,7 @@ class Ammo(AmmoBase, table=True):
 
 class ShootingSession(ShootingSessionBase, table=True):
     __tablename__ = "sessions"
+    model_config = ConfigDict(arbitrary_types_allowed=True)
     id: str = Field(default_factory=lambda: str(uuid4()), primary_key=True)
     user_id: str = Field(index=True, max_length=64)
     expires_at: Optional[datetime] = Field(default=None, nullable=True)
@@ -124,6 +128,7 @@ class ShootingSession(ShootingSessionBase, table=True):
 
 class AccuracySession(AccuracySessionBase, table=True):
     __tablename__ = "accuracy_sessions"
+    model_config = ConfigDict(arbitrary_types_allowed=True)
     id: str = Field(default_factory=lambda: str(uuid4()), primary_key=True)
     user_id: str = Field(index=True, max_length=64)
     expires_at: Optional[datetime] = Field(default=None, nullable=True)
@@ -134,6 +139,7 @@ class AccuracySession(AccuracySessionBase, table=True):
 
 class Attachment(AttachmentBase, table=True):
     __tablename__ = "attachments"
+    model_config = ConfigDict(arbitrary_types_allowed=True)
     id: str = Field(default_factory=lambda: str(uuid4()), primary_key=True)
     user_id: str = Field(index=True, max_length=64)
     expires_at: Optional[datetime] = Field(default=None, nullable=True)
@@ -143,6 +149,7 @@ class Attachment(AttachmentBase, table=True):
 
 class Maintenance(MaintenanceBase, table=True):
     __tablename__ = "maintenance"
+    model_config = ConfigDict(arbitrary_types_allowed=True)
     id: str = Field(default_factory=lambda: str(uuid4()), primary_key=True)
     user_id: str = Field(index=True, max_length=64)
     expires_at: Optional[datetime] = Field(default=None, nullable=True)
