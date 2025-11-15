@@ -279,6 +279,19 @@ class MaintenanceService:
                 accuracy_sessions = await asyncio.to_thread(lambda: session.exec(query_all_accuracy).all())
                 accuracy_rounds = sum(acc_session.shots for acc_session in accuracy_sessions)
                 maintenance.rounds_since_last = cost_rounds + accuracy_rounds
+            session.add(maintenance)
+            await asyncio.to_thread(session.commit)
+            await asyncio.to_thread(session.refresh, maintenance)
+            if maint_index < len(maintenance_list_sorted) - 1:
+                next_maint = maintenance_list_sorted[maint_index + 1]
+                next_rounds = await MaintenanceService._calculate_rounds_since_last(
+                    session, user, gun_id, maintenance.date, next_maint.date
+                )
+                next_maint.rounds_since_last = next_rounds
+                session.add(next_maint)
+                await asyncio.to_thread(session.commit)
+                await asyncio.to_thread(session.refresh, next_maint)
+        await asyncio.to_thread(session.refresh, maintenance)
         return maintenance
 
     @staticmethod
@@ -287,4 +300,63 @@ class MaintenanceService:
         await asyncio.to_thread(session.delete, maintenance)
         await asyncio.to_thread(session.commit)
         return {"message": f"Konserwacja o ID {maintenance_id} została usunięta"}
+
+    @staticmethod
+    async def get_maintenance_status(session: Session, user: UserContext, gun_id: str) -> Dict[str, Any]:
+        await GunService._get_single_gun(session, gun_id, user)
+        query_last = MaintenanceService._query_for_user(user, gun_id).order_by(desc(Maintenance.date)).limit(1)
+        last_maintenance = await asyncio.to_thread(lambda: session.exec(query_last).first())
+        if not last_maintenance:
+            query_all_sessions = select(ShootingSession).where(
+                ShootingSession.gun_id == gun_id,
+                ShootingSession.user_id == user.user_id
+            )
+            if user.is_guest:
+                query_all_sessions = query_all_sessions.where(
+                    or_(ShootingSession.expires_at.is_(None), ShootingSession.expires_at > datetime.utcnow())
+                )
+            sessions = await asyncio.to_thread(lambda: session.exec(query_all_sessions).all())
+            cost_rounds = sum(session_item.shots for session_item in sessions)
+            query_all_accuracy = select(AccuracySession).where(
+                AccuracySession.gun_id == gun_id,
+                AccuracySession.user_id == user.user_id
+            )
+            if user.is_guest:
+                query_all_accuracy = query_all_accuracy.where(
+                    or_(AccuracySession.expires_at.is_(None), AccuracySession.expires_at > datetime.utcnow())
+                )
+            accuracy_sessions = await asyncio.to_thread(lambda: session.exec(query_all_accuracy).all())
+            accuracy_rounds = sum(acc_session.shots for acc_session in accuracy_sessions)
+            rounds = cost_rounds + accuracy_rounds
+            return {
+                "status": "red",
+                "rounds_since_last": rounds,
+                "days_since_last": None,
+                "last_maintenance_date": None,
+                "message": "Brak konserwacji"
+            }
+        rounds = await MaintenanceService._calculate_rounds_since_last(session, user, gun_id, last_maintenance.date, None)
+        days_since = (date.today() - last_maintenance.date).days
+        rounds_status = "green"
+        if rounds >= 500:
+            rounds_status = "red"
+        elif rounds >= 300:
+            rounds_status = "yellow"
+        days_status = "green"
+        if days_since >= 60:
+            days_status = "red"
+        elif days_since >= 30:
+            days_status = "yellow"
+        final_status = "green"
+        if rounds_status == "red" or days_status == "red":
+            final_status = "red"
+        elif rounds_status == "yellow" or days_status == "yellow":
+            final_status = "yellow"
+        return {
+            "status": final_status,
+            "rounds_since_last": rounds,
+            "days_since_last": days_since,
+            "last_maintenance_date": last_maintenance.date.isoformat(),
+            "message": f"{rounds} strzałów, {days_since} dni"
+        }
 

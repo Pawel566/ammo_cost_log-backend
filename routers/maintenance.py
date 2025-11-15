@@ -54,4 +54,12 @@ async def delete_maintenance(
 ):
     return await MaintenanceService.delete_maintenance(session, user, maintenance_id)
 
+@router.get("/guns/{gun_id}/status")
+async def get_maintenance_status(
+    gun_id: str,
+    session: Session = Depends(get_session),
+    user: UserContext = Depends(role_required([UserRole.guest, UserRole.user, UserRole.admin]))
+):
+    return await MaintenanceService.get_maintenance_status(session, user, gun_id)
+
 
