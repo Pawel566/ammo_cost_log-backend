@@ -62,14 +62,21 @@ class GunService:
 
     @staticmethod
     async def create_gun(session: Session, gun_data: GunCreate, user: UserContext) -> Gun:
-        payload = gun_data.model_dump()
-        gun = Gun(**payload, user_id=user.user_id)
-        if user.is_guest:
-            gun.expires_at = user.expires_at
-        session.add(gun)
-        await asyncio.to_thread(session.commit)
-        await asyncio.to_thread(session.refresh, gun)
-        return gun
+        try:
+            payload = gun_data.model_dump(exclude_none=True)
+            gun = Gun(**payload, user_id=user.user_id)
+            if user.is_guest:
+                gun.expires_at = user.expires_at
+            session.add(gun)
+            await asyncio.to_thread(session.commit)
+            await asyncio.to_thread(session.refresh, gun)
+            return gun
+        except Exception as e:
+            await asyncio.to_thread(session.rollback)
+            raise HTTPException(
+                status_code=500,
+                detail=f"Błąd podczas tworzenia broni: {str(e)}"
+            )
 
     @staticmethod
     async def update_gun(session: Session, gun_id: str, gun_data: GunUpdate, user: UserContext) -> Gun:
