@@ -45,3 +45,4 @@ class UserSettingsService:
         await asyncio.to_thread(session.refresh, settings)
         return settings
 
+

@@ -82,7 +82,34 @@ class AccountService:
         return {"message": "Poziom zaawansowania został zaktualizowany", "skill_level": skill_level}
 
     @staticmethod
-    async def delete_account(session: Session, user: UserContext, supabase: Optional[Client] = None) -> Dict[str, str]:
+    async def delete_account(session: Session, user: UserContext, supabase: Optional[Client], access_token: str, password: str) -> Dict[str, str]:
+        if user.is_guest:
+            raise HTTPException(status_code=403, detail="Goście nie mogą usuwać kont")
+        if not supabase:
+            raise HTTPException(status_code=503, detail="Authentication service not available")
+        if not user.email:
+            raise HTTPException(status_code=400, detail="Brak adresu email")
+        try:
+            import httpx
+            from settings import settings
+            async with httpx.AsyncClient() as client:
+                response = await client.post(
+                    f"{settings.supabase_url}/auth/v1/token?grant_type=password",
+                    headers={
+                        "apikey": settings.supabase_anon_key,
+                        "Content-Type": "application/json"
+                    },
+                    json={
+                        "email": user.email,
+                        "password": password
+                    }
+                )
+                if response.status_code != 200:
+                    raise HTTPException(status_code=401, detail="Nieprawidłowe hasło")
+        except HTTPException:
+            raise
+        except Exception as e:
+            raise HTTPException(status_code=401, detail="Nieprawidłowe hasło")
         user_id = user.user_id
         def _delete_user_data(db_session: Session):
             query_guns = select(Gun).where(Gun.user_id == user_id)

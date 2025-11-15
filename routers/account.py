@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, Header
 from sqlmodel import Session, select
-from schemas.account import ChangePasswordRequest, ChangeEmailRequest, UpdateSkillLevelRequest
+from schemas.account import ChangePasswordRequest, ChangeEmailRequest, UpdateSkillLevelRequest, DeleteAccountRequest
 from database import get_session
 from routers.auth import get_current_user
 from services.account_service import AccountService
@@ -59,10 +59,15 @@ async def change_email(
     return await AccountService.change_email(session, user, supabase, credentials.credentials, data.new_email)
 
 
-@router.post("/delete")
+@router.delete("")
 async def delete_account(
+    data: DeleteAccountRequest,
     session: Session = Depends(get_session),
-    user: UserContext = Depends(get_current_user)
+    user: UserContext = Depends(get_current_user),
+    credentials: HTTPAuthorizationCredentials = Depends(security)
 ):
-    return await AccountService.delete_account(session, user, supabase)
+    if not credentials:
+        from fastapi import HTTPException
+        raise HTTPException(status_code=401, detail="Brak tokena uwierzytelniającego")
+    return await AccountService.delete_account(session, user, supabase, credentials.credentials, data.password)
 

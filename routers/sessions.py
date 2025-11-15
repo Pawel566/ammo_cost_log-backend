@@ -74,8 +74,7 @@ async def add_accuracy_session(
         data.date,
         data.distance_m,
         data.shots,
-        data.hits,
-        data.openai_api_key
+        data.hits
     )
 
 

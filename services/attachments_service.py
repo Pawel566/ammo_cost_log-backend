@@ -63,3 +63,4 @@ class AttachmentsService:
         await asyncio.to_thread(session.commit)
         return {"message": f"Załącznik o ID {attachment_id} został usunięty"}
 
+

@@ -13,3 +13,7 @@ class ChangeEmailRequest(BaseModel):
 class UpdateSkillLevelRequest(BaseModel):
     skill_level: str = Field(min_length=1)
 
+
+class DeleteAccountRequest(BaseModel):
+    password: str
+
