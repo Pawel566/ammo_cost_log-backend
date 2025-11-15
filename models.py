@@ -115,8 +115,8 @@ class ShootingSession(ShootingSessionBase, table=True):
     id: str = Field(default_factory=lambda: str(uuid4()), primary_key=True)
     user_id: str = Field(index=True, max_length=64)
     expires_at: Optional[datetime] = Field(default=None, nullable=True)
-    gun: Optional[Gun] = Relationship(back_populates="sessions")
-    ammo: Optional[Ammo] = Relationship(back_populates="sessions")
+    gun: Optional["Gun"] = Relationship(back_populates="sessions")
+    ammo: Optional["Ammo"] = Relationship(back_populates="sessions")
 
 
 class AccuracySession(AccuracySessionBase, table=True):
@@ -124,8 +124,8 @@ class AccuracySession(AccuracySessionBase, table=True):
     id: str = Field(default_factory=lambda: str(uuid4()), primary_key=True)
     user_id: str = Field(index=True, max_length=64)
     expires_at: Optional[datetime] = Field(default=None, nullable=True)
-    gun: Optional[Gun] = Relationship(back_populates="accuracy_sessions")
-    ammo: Optional[Ammo] = Relationship(back_populates="accuracy_sessions")
+    gun: Optional["Gun"] = Relationship(back_populates="accuracy_sessions")
+    ammo: Optional["Ammo"] = Relationship(back_populates="accuracy_sessions")
 
 
 class Attachment(AttachmentBase, table=True):
@@ -133,7 +133,7 @@ class Attachment(AttachmentBase, table=True):
     id: str = Field(default_factory=lambda: str(uuid4()), primary_key=True)
     user_id: str = Field(index=True, max_length=64)
     expires_at: Optional[datetime] = Field(default=None, nullable=True)
-    gun: Optional[Gun] = Relationship(back_populates="attachments")
+    gun: Optional["Gun"] = Relationship(back_populates="attachments")
 
 
 class Maintenance(MaintenanceBase, table=True):
@@ -141,7 +141,7 @@ class Maintenance(MaintenanceBase, table=True):
     id: str = Field(default_factory=lambda: str(uuid4()), primary_key=True)
     user_id: str = Field(index=True, max_length=64)
     expires_at: Optional[datetime] = Field(default=None, nullable=True)
-    gun: Optional[Gun] = Relationship(back_populates="maintenance")
+    gun: Optional["Gun"] = Relationship(back_populates="maintenance")
 
 
 class UserSettings(UserSettingsBase, table=True):
