@@ -1,7 +1,7 @@
 from sqlmodel import SQLModel, Field, Relationship
 from typing import Optional, List
 from uuid import uuid4
-from datetime import date as Date, datetime
+from datetime import date, datetime
 from enum import Enum
 
 
@@ -36,7 +36,7 @@ class AmmoUpdate(SQLModel):
 class ShootingSessionBase(SQLModel):
     gun_id: str = Field(foreign_key="guns.id")
     ammo_id: str = Field(foreign_key="ammo.id")
-    date: Date
+    date: date
     shots: int = Field(gt=0)
     cost: float = Field(ge=0)
     notes: Optional[str] = Field(default=None, max_length=500)
@@ -45,7 +45,7 @@ class ShootingSessionBase(SQLModel):
 class AccuracySessionBase(SQLModel):
     gun_id: str = Field(foreign_key="guns.id")
     ammo_id: str = Field(foreign_key="ammo.id")
-    date: Date
+    date: date
     distance_m: int = Field(gt=0)
     hits: int = Field(ge=0)
     shots: int = Field(gt=0)
@@ -75,7 +75,7 @@ class AttachmentBase(SQLModel):
 
 class MaintenanceBase(SQLModel):
     gun_id: str = Field(foreign_key="guns.id")
-    date: Date
+    date: date
     notes: Optional[str] = Field(default=None, max_length=500)
     rounds_since_last: int = Field(ge=0)
 
@@ -95,6 +95,7 @@ class Gun(GunBase, table=True):
     id: str = Field(default_factory=lambda: str(uuid4()), primary_key=True)
     user_id: str = Field(index=True, max_length=64)
     expires_at: Optional[datetime] = Field(default=None, nullable=True)
+
     sessions: List["ShootingSession"] = Relationship(back_populates="gun")
     accuracy_sessions: List["AccuracySession"] = Relationship(back_populates="gun")
     attachments: List["Attachment"] = Relationship(back_populates="gun")
@@ -106,6 +107,7 @@ class Ammo(AmmoBase, table=True):
     id: str = Field(default_factory=lambda: str(uuid4()), primary_key=True)
     user_id: str = Field(index=True, max_length=64)
     expires_at: Optional[datetime] = Field(default=None, nullable=True)
+
     sessions: List["ShootingSession"] = Relationship(back_populates="ammo")
     accuracy_sessions: List["AccuracySession"] = Relationship(back_populates="ammo")
 
@@ -115,6 +117,7 @@ class ShootingSession(ShootingSessionBase, table=True):
     id: str = Field(default_factory=lambda: str(uuid4()), primary_key=True)
     user_id: str = Field(index=True, max_length=64)
     expires_at: Optional[datetime] = Field(default=None, nullable=True)
+
     gun: Optional["Gun"] = Relationship(back_populates="sessions")
     ammo: Optional["Ammo"] = Relationship(back_populates="sessions")
 
@@ -124,6 +127,7 @@ class AccuracySession(AccuracySessionBase, table=True):
     id: str = Field(default_factory=lambda: str(uuid4()), primary_key=True)
     user_id: str = Field(index=True, max_length=64)
     expires_at: Optional[datetime] = Field(default=None, nullable=True)
+
     gun: Optional["Gun"] = Relationship(back_populates="accuracy_sessions")
     ammo: Optional["Ammo"] = Relationship(back_populates="accuracy_sessions")
 
@@ -133,6 +137,7 @@ class Attachment(AttachmentBase, table=True):
     id: str = Field(default_factory=lambda: str(uuid4()), primary_key=True)
     user_id: str = Field(index=True, max_length=64)
     expires_at: Optional[datetime] = Field(default=None, nullable=True)
+
     gun: Optional["Gun"] = Relationship(back_populates="attachments")
 
 
@@ -141,6 +146,7 @@ class Maintenance(MaintenanceBase, table=True):
     id: str = Field(default_factory=lambda: str(uuid4()), primary_key=True)
     user_id: str = Field(index=True, max_length=64)
     expires_at: Optional[datetime] = Field(default=None, nullable=True)
+
     gun: Optional["Gun"] = Relationship(back_populates="maintenance")
 
 
