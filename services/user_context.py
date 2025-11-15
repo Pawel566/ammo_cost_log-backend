@@ -1,7 +1,7 @@
 from enum import Enum
 from datetime import datetime, timedelta
 from typing import Optional, Any
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from settings import settings
 
 
@@ -15,10 +15,10 @@ class UserContext(BaseModel):
     user_id: str
     role: UserRole
     is_guest: bool = False
-    guest_session_id: Optional[str] = None
-    expires_at: Optional[datetime] = None
-    email: Optional[str] = None
-    username: Optional[str] = None
+    guest_session_id: Optional[str] = Field(default=None)
+    expires_at: Optional[datetime] = Field(default=None)
+    email: Optional[str] = Field(default=None)
+    username: Optional[str] = Field(default=None)
 
     def model_post_init(self, __context: Any) -> None:
         if self.is_guest and self.expires_at is None:
