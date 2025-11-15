@@ -224,6 +224,23 @@ class MaintenanceService:
         return maintenance
 
     @staticmethod
+    async def update_maintenance(session: Session, user: UserContext, maintenance_id: str, data: dict) -> Maintenance:
+        maintenance = await MaintenanceService._get_single_maintenance(session, maintenance_id, user)
+        if "date" in data and data["date"]:
+            if isinstance(data["date"], str):
+                maintenance.date = datetime.strptime(data["date"], "%Y-%m-%d").date()
+            else:
+                maintenance.date = data["date"]
+        if "notes" in data:
+            maintenance.notes = data.get("notes")
+        if user.is_guest:
+            maintenance.expires_at = user.expires_at
+        session.add(maintenance)
+        await asyncio.to_thread(session.commit)
+        await asyncio.to_thread(session.refresh, maintenance)
+        return maintenance
+
+    @staticmethod
     async def delete_maintenance(session: Session, user: UserContext, maintenance_id: str) -> dict:
         maintenance = await MaintenanceService._get_single_maintenance(session, maintenance_id, user)
         await asyncio.to_thread(session.delete, maintenance)

@@ -8,6 +8,11 @@ class MaintenanceCreate(BaseModel):
     notes: Optional[str] = Field(default=None, max_length=500)
 
 
+class MaintenanceUpdate(BaseModel):
+    date: Optional[date] = None
+    notes: Optional[str] = Field(default=None, max_length=500)
+
+
 class MaintenanceRead(MaintenanceCreate):
     id: str
     gun_id: str

@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, Query
 from sqlmodel import Session
 from typing import List, Optional
-from schemas.maintenance import MaintenanceCreate, MaintenanceRead
+from schemas.maintenance import MaintenanceCreate, MaintenanceUpdate, MaintenanceRead
 from database import get_session
 from routers.auth import role_required
 from services.maintenance_service import MaintenanceService
@@ -36,6 +36,15 @@ async def add_maintenance(
     user: UserContext = Depends(role_required([UserRole.guest, UserRole.user, UserRole.admin]))
 ):
     return await MaintenanceService.create_maintenance(session, user, gun_id, maintenance_data.model_dump())
+
+@router.put("/maintenance/{maintenance_id}", response_model=MaintenanceRead)
+async def update_maintenance(
+    maintenance_id: str,
+    maintenance_data: MaintenanceUpdate,
+    session: Session = Depends(get_session),
+    user: UserContext = Depends(role_required([UserRole.guest, UserRole.user, UserRole.admin]))
+):
+    return await MaintenanceService.update_maintenance(session, user, maintenance_id, maintenance_data.model_dump(exclude_unset=True))
 
 @router.delete("/maintenance/{maintenance_id}")
 async def delete_maintenance(
