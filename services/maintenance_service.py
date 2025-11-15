@@ -294,7 +294,7 @@ class MaintenanceService:
                 session.add(next_maint)
                 await asyncio.to_thread(session.commit)
         except Exception as e:
-            logger.error(f"Błąd podczas aktualizacji następnej konserwacji: {e}")
+            pass
         await asyncio.to_thread(session.refresh, maintenance)
         return maintenance
 
