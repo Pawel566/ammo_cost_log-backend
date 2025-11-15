@@ -26,9 +26,22 @@ async def get_all_sessions(
     user: UserContext = Depends(role_required([UserRole.guest, UserRole.user, UserRole.admin])),
     limit: int = Query(20, ge=1, le=100),
     offset: int = Query(0, ge=0),
-    search: Optional[str] = Query(default=None, min_length=1)
+    search: Optional[str] = Query(default=None, min_length=1),
+    gun_id: Optional[str] = Query(default=None)
 ):
-    return await SessionService.get_all_sessions(session, user, limit, offset, search)
+    result = await SessionService.get_all_sessions(session, user, limit, offset, search)
+    if gun_id:
+        if result.get("cost_sessions"):
+            result["cost_sessions"]["items"] = [
+                s for s in result["cost_sessions"]["items"] if s.gun_id == gun_id
+            ]
+            result["cost_sessions"]["total"] = len(result["cost_sessions"]["items"])
+        if result.get("accuracy_sessions"):
+            result["accuracy_sessions"]["items"] = [
+                s for s in result["accuracy_sessions"]["items"] if s.gun_id == gun_id
+            ]
+            result["accuracy_sessions"]["total"] = len(result["accuracy_sessions"]["items"])
+    return result
 
 
 @router.post("/cost", response_model=Dict[str, Any])
