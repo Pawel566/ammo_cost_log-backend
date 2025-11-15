@@ -241,47 +241,50 @@ class MaintenanceService:
         await asyncio.to_thread(session.refresh, maintenance)
         query_all = MaintenanceService._query_for_user(user, gun_id).order_by(desc(Maintenance.date))
         all_maintenance = await asyncio.to_thread(lambda: session.exec(query_all).all())
+        if not all_maintenance:
+            return maintenance
         maintenance_list_sorted = sorted(all_maintenance, key=lambda x: x.date)
         maint_index = next((i for i, m in enumerate(maintenance_list_sorted) if m.id == maintenance_id), -1)
-        if maint_index >= 0:
-            if maint_index == len(maintenance_list_sorted) - 1:
-                rounds = await MaintenanceService._calculate_rounds_since_last(
-                    session, user, gun_id, maintenance.date, None
+        if maint_index < 0:
+            return maintenance
+        if maint_index == len(maintenance_list_sorted) - 1:
+            rounds = await MaintenanceService._calculate_rounds_since_last(
+                session, user, gun_id, maintenance.date, None
+            )
+            maintenance.rounds_since_last = rounds
+        elif maint_index > 0:
+            prev_maint = maintenance_list_sorted[maint_index - 1]
+            rounds = await MaintenanceService._calculate_rounds_since_last(
+                session, user, gun_id, prev_maint.date, maintenance.date
+            )
+            maintenance.rounds_since_last = rounds
+        else:
+            query_all_sessions = select(ShootingSession).where(
+                ShootingSession.gun_id == gun_id,
+                ShootingSession.user_id == user.user_id,
+                ShootingSession.date <= maintenance.date
+            )
+            if user.is_guest:
+                query_all_sessions = query_all_sessions.where(
+                    or_(ShootingSession.expires_at.is_(None), ShootingSession.expires_at > datetime.utcnow())
                 )
-                maintenance.rounds_since_last = rounds
-            elif maint_index > 0:
-                prev_maint = maintenance_list_sorted[maint_index - 1]
-                rounds = await MaintenanceService._calculate_rounds_since_last(
-                    session, user, gun_id, prev_maint.date, maintenance.date
+            sessions = await asyncio.to_thread(lambda: session.exec(query_all_sessions).all())
+            cost_rounds = sum(session_item.shots for session_item in sessions)
+            query_all_accuracy = select(AccuracySession).where(
+                AccuracySession.gun_id == gun_id,
+                AccuracySession.user_id == user.user_id,
+                AccuracySession.date <= maintenance.date
+            )
+            if user.is_guest:
+                query_all_accuracy = query_all_accuracy.where(
+                    or_(AccuracySession.expires_at.is_(None), AccuracySession.expires_at > datetime.utcnow())
                 )
-                maintenance.rounds_since_last = rounds
-            else:
-                query_all_sessions = select(ShootingSession).where(
-                    ShootingSession.gun_id == gun_id,
-                    ShootingSession.user_id == user.user_id,
-                    ShootingSession.date <= maintenance.date
-                )
-                if user.is_guest:
-                    query_all_sessions = query_all_sessions.where(
-                        or_(ShootingSession.expires_at.is_(None), ShootingSession.expires_at > datetime.utcnow())
-                    )
-                sessions = await asyncio.to_thread(lambda: session.exec(query_all_sessions).all())
-                cost_rounds = sum(session_item.shots for session_item in sessions)
-                query_all_accuracy = select(AccuracySession).where(
-                    AccuracySession.gun_id == gun_id,
-                    AccuracySession.user_id == user.user_id,
-                    AccuracySession.date <= maintenance.date
-                )
-                if user.is_guest:
-                    query_all_accuracy = query_all_accuracy.where(
-                        or_(AccuracySession.expires_at.is_(None), AccuracySession.expires_at > datetime.utcnow())
-                    )
-                accuracy_sessions = await asyncio.to_thread(lambda: session.exec(query_all_accuracy).all())
-                accuracy_rounds = sum(acc_session.shots for acc_session in accuracy_sessions)
-                maintenance.rounds_since_last = cost_rounds + accuracy_rounds
-            session.add(maintenance)
-            await asyncio.to_thread(session.commit)
-            await asyncio.to_thread(session.refresh, maintenance)
+            accuracy_sessions = await asyncio.to_thread(lambda: session.exec(query_all_accuracy).all())
+            accuracy_rounds = sum(acc_session.shots for acc_session in accuracy_sessions)
+            maintenance.rounds_since_last = cost_rounds + accuracy_rounds
+        session.add(maintenance)
+        await asyncio.to_thread(session.commit)
+        try:
             if maint_index < len(maintenance_list_sorted) - 1:
                 next_maint = maintenance_list_sorted[maint_index + 1]
                 next_rounds = await MaintenanceService._calculate_rounds_since_last(
@@ -290,7 +293,8 @@ class MaintenanceService:
                 next_maint.rounds_since_last = next_rounds
                 session.add(next_maint)
                 await asyncio.to_thread(session.commit)
-                await asyncio.to_thread(session.refresh, next_maint)
+        except Exception as e:
+            logger.error(f"Błąd podczas aktualizacji następnej konserwacji: {e}")
         await asyncio.to_thread(session.refresh, maintenance)
         return maintenance
 
