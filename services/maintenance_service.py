@@ -36,22 +36,8 @@ class MaintenanceService:
                 or_(ShootingSession.expires_at.is_(None), ShootingSession.expires_at > datetime.utcnow())
             )
         sessions = await asyncio.to_thread(lambda: session.exec(query_sessions).all())
-        cost_rounds = sum(session_item.shots for session_item in sessions)
-        
-        query_accuracy = select(AccuracySession).where(
-            AccuracySession.gun_id == gun_id,
-            AccuracySession.user_id == user.user_id,
-            AccuracySession.date > last_maintenance_date
-        )
-        if until_date:
-            query_accuracy = query_accuracy.where(AccuracySession.date <= until_date)
-        if user.is_guest:
-            query_accuracy = query_accuracy.where(
-                or_(AccuracySession.expires_at.is_(None), AccuracySession.expires_at > datetime.utcnow())
-            )
-        accuracy_sessions = await asyncio.to_thread(lambda: session.exec(query_accuracy).all())
-        accuracy_rounds = sum(acc_session.shots for acc_session in accuracy_sessions)
-        return cost_rounds + accuracy_rounds
+        rounds = sum(session_item.shots for session_item in sessions)
+        return rounds
 
     @staticmethod
     async def list_all(session: Session, user: UserContext, gun_id: Optional[str] = None) -> List[Maintenance]:
