@@ -149,10 +149,10 @@ class MaintenanceService:
     @staticmethod
     async def update_maintenance(session: Session, user: UserContext, maintenance_id: str, data: dict) -> Maintenance:
         maintenance = await MaintenanceService._get_single_maintenance(session, maintenance_id, user)
-        if "date" in data and data["date"]:
+        if "date" in data and data["date"] is not None:
             if isinstance(data["date"], str):
                 maintenance.date = datetime.strptime(data["date"], "%Y-%m-%d").date()
-            else:
+            elif isinstance(data["date"], date):
                 maintenance.date = data["date"]
         if "notes" in data:
             maintenance.notes = data.get("notes")
