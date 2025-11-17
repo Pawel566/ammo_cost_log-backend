@@ -48,7 +48,8 @@ async def update_maintenance(
     session: Session = Depends(get_session),
     user: UserContext = Depends(role_required([UserRole.guest, UserRole.user, UserRole.admin]))
 ):
-    return await MaintenanceService.update_maintenance(session, user, maintenance_id, maintenance_data.model_dump(exclude_none=True))
+    data_dict = maintenance_data.model_dump(exclude_none=True, by_alias=True)
+    return await MaintenanceService.update_maintenance(session, user, maintenance_id, data_dict)
 
 @router.delete("/maintenance/{maintenance_id}")
 async def delete_maintenance(

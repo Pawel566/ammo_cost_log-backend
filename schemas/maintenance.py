@@ -10,9 +10,11 @@ class MaintenanceCreate(BaseModel):
 
 
 class MaintenanceUpdate(BaseModel):
-    date: Optional[date] = None
+    maintenance_date: Optional[date] = Field(default=None, alias="date")
     notes: Optional[str] = Field(default=None, max_length=500)
     rounds_since_last: Optional[int] = Field(default=None, ge=0)
+    
+    model_config = ConfigDict(populate_by_name=True)
 
 
 class MaintenanceRead(MaintenanceCreate):
