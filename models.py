@@ -1,4 +1,5 @@
-from sqlmodel import SQLModel, Field, Relationship
+from sqlmodel import SQLModel, Field, Relationship, Column
+from sqlalchemy import Enum as SQLEnum
 from typing import Optional, List
 from uuid import uuid4
 from datetime import date as Date, datetime
@@ -133,6 +134,7 @@ class Attachment(AttachmentBase, table=True):
     id: str = Field(default_factory=lambda: str(uuid4()), primary_key=True)
     user_id: str = Field(index=True, max_length=64)
     expires_at: Optional[datetime] = Field(default=None, nullable=True)
+    type: AttachmentType = Field(sa_column=Column(SQLEnum(AttachmentType, name="attachment_type_enum")))
     gun: Optional[Gun] = Relationship(back_populates="attachments")
 
 

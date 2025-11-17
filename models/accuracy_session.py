@@ -14,8 +14,7 @@ class AccuracySessionBase(SQLModel):
     shots: int = Field(gt=0)
     accuracy_percent: Optional[float] = Field(default=None, ge=0, le=100)
     ai_comment: Optional[str] = Field(default=None, max_length=1000)
-    shooting_session_id: Optional[int] = Field(default=None, foreign_key="shootingsession.id")
-    shooting_session: Optional["ShootingSession"] = Relationship(back_populates="accuracy")
+    shooting_session_id: Optional[str] = Field(default=None, foreign_key="shootingsession.id")
 
 
 class AccuracySession(AccuracySessionBase, table=True):
@@ -23,4 +22,6 @@ class AccuracySession(AccuracySessionBase, table=True):
     id: str = Field(default_factory=lambda: str(uuid4()), primary_key=True)
     user_id: str = Field(index=True, max_length=64)
     expires_at: Optional[datetime] = Field(default=None, nullable=True)
+    shooting_session: Optional["ShootingSession"] = Relationship(back_populates="accuracy")
+
 
