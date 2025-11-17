@@ -27,3 +27,5 @@ class MaintenanceRead(MaintenanceCreate):
 class MaintenanceWithGun(MaintenanceRead):
     gun_name: Optional[str] = None
 
+
+

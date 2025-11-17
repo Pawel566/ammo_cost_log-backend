@@ -8,6 +8,7 @@ from models import ShootingSession, Ammo, Gun, AccuracySession
 import asyncio
 import logging
 from services.user_context import UserContext, UserRole
+from services.maintenance_service import MaintenanceService
 
 logger = logging.getLogger(__name__)
 
@@ -213,6 +214,7 @@ class SessionService:
         session.add(gun)
         await asyncio.to_thread(session.commit)
         await asyncio.to_thread(session.refresh, new_session)
+        await MaintenanceService.update_last_maintenance_rounds(session, user, gun_id)
         return {
             "session": new_session,
             "remaining_ammo": ammo.units_in_package
@@ -270,6 +272,7 @@ class SessionService:
         session.add(ammo)
         session.add(gun)
         await asyncio.to_thread(session.commit)
+        await MaintenanceService.update_last_maintenance_rounds(session, user, gun_id)
         await asyncio.to_thread(session.refresh, cost_session)
         await asyncio.to_thread(session.refresh, accuracy_session)
         return {

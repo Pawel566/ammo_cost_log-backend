@@ -59,6 +59,8 @@ class MaintenanceService:
         maintenance_list = await asyncio.to_thread(lambda: session.exec(query).all())
         
         result = []
+        processed_guns = set()
+        
         for maint in maintenance_list:
             maint_dict = {
                 "id": maint.id,
@@ -77,6 +79,19 @@ class MaintenanceService:
             if gun:
                 maint_dict["gun_name"] = gun.name
             
+            if maint.gun_id not in processed_guns:
+                query_last = MaintenanceService._query_for_user(user, maint.gun_id).order_by(desc(Maintenance.date)).limit(1)
+                last_maintenance = await asyncio.to_thread(lambda: session.exec(query_last).first())
+                if last_maintenance and last_maintenance.id == maint.id:
+                    rounds_since_last = await MaintenanceService._calculate_rounds_since_last(
+                        session, user, maint.gun_id, maint.date, None
+                    )
+                    maint_dict["rounds_since_last"] = rounds_since_last
+                    maint.rounds_since_last = rounds_since_last
+                    session.add(maint)
+                    await asyncio.to_thread(session.commit)
+                processed_guns.add(maint.gun_id)
+            
             result.append(maint_dict)
         
         return result
@@ -86,6 +101,17 @@ class MaintenanceService:
         await GunService._get_single_gun(session, gun_id, user)
         query = MaintenanceService._query_for_user(user, gun_id).order_by(desc(Maintenance.date))
         maintenance_list = await asyncio.to_thread(lambda: session.exec(query).all())
+        
+        if maintenance_list:
+            last_maintenance = maintenance_list[0]
+            rounds_since_last = await MaintenanceService._calculate_rounds_since_last(
+                session, user, gun_id, last_maintenance.date, None
+            )
+            if last_maintenance.rounds_since_last != rounds_since_last:
+                last_maintenance.rounds_since_last = rounds_since_last
+                session.add(last_maintenance)
+                await asyncio.to_thread(session.commit)
+        
         return list(maintenance_list)
 
     @staticmethod
@@ -161,6 +187,18 @@ class MaintenanceService:
         return {"message": f"Konserwacja o ID {maintenance_id} została usunięta"}
 
     @staticmethod
+    async def update_last_maintenance_rounds(session: Session, user: UserContext, gun_id: str) -> None:
+        query_last = MaintenanceService._query_for_user(user, gun_id).order_by(desc(Maintenance.date)).limit(1)
+        last_maintenance = await asyncio.to_thread(lambda: session.exec(query_last).first())
+        if last_maintenance:
+            rounds_since_last = await MaintenanceService._calculate_rounds_since_last(
+                session, user, gun_id, last_maintenance.date, None
+            )
+            last_maintenance.rounds_since_last = rounds_since_last
+            session.add(last_maintenance)
+            await asyncio.to_thread(session.commit)
+
+    @staticmethod
     async def get_statistics(session: Session, user: UserContext) -> Dict[str, Any]:
         query_guns = select(Gun)
         if user.role != UserRole.admin:
@@ -201,4 +239,6 @@ class MaintenanceService:
             "longest_without_maintenance": longest_without,
             "guns_status": gun_stats
         }
+
+
 
