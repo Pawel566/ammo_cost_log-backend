@@ -3,7 +3,7 @@ from typing import Dict, Any, Optional
 import asyncio
 from fastapi import HTTPException
 from supabase import Client
-from models import Gun, Ammo, ShootingSession, AccuracySession, Attachment, UserSettings, User
+from models import Gun, Ammo, ShootingSession, AccuracySession, Attachment, Maintenance, UserSettings, User
 from services.user_context import UserContext
 from services.error_handler import ErrorHandler
 
@@ -119,6 +119,10 @@ class AccountService:
                 attachments = db_session.exec(query_attachments).all()
                 for attachment in attachments:
                     db_session.delete(attachment)
+                query_maintenance = select(Maintenance).where(Maintenance.gun_id == gun.id)
+                maintenance_list = db_session.exec(query_maintenance).all()
+                for maintenance in maintenance_list:
+                    db_session.delete(maintenance)
                 db_session.delete(gun)
             query_ammo = select(Ammo).where(Ammo.user_id == user_id)
             ammo_list = db_session.exec(query_ammo).all()
