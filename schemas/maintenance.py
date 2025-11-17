@@ -6,29 +6,28 @@ from pydantic import BaseModel, Field, ConfigDict
 class MaintenanceCreate(BaseModel):
     date: date
     notes: Optional[str] = Field(default=None, max_length=500)
+    rounds_since_last: Optional[int] = Field(default=0, ge=0)
 
 
 class MaintenanceUpdate(BaseModel):
-    date: Optional[date] = None
+    maintenance_date: Optional[date] = Field(default=None, alias="date")
     notes: Optional[str] = Field(default=None, max_length=500)
+    rounds_since_last: Optional[int] = Field(default=None, ge=0)
+    
+    model_config = ConfigDict(populate_by_name=True)
 
 
 class MaintenanceRead(MaintenanceCreate):
     id: str
     gun_id: str
     user_id: str
-    rounds_since_last: int
     expires_at: Optional[datetime] = None
 
     model_config = ConfigDict(from_attributes=True)
 
 
-class MaintenanceStatus(BaseModel):
-    status: str
-    rounds_since_last: int
-    days_since_last: Optional[int]
-    rounds_status: str
-    days_status: str
-    message: Optional[str] = None
+class MaintenanceWithGun(MaintenanceRead):
+    gun_name: Optional[str] = None
+
 
 

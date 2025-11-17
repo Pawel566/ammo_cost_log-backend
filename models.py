@@ -77,7 +77,7 @@ class MaintenanceBase(SQLModel):
     gun_id: str = Field(foreign_key="guns.id")
     date: Date
     notes: Optional[str] = Field(default=None, max_length=500)
-    rounds_since_last: int = Field(ge=0)
+    rounds_since_last: int = Field(ge=0, default=0)
 
 
 class UserSettingsBase(SQLModel):
