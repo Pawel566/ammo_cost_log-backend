@@ -2,17 +2,30 @@ from fastapi import APIRouter, HTTPException, Depends
 from sqlmodel import Session, select
 from sqlalchemy import or_
 import asyncio
-from models.shooting_session import (
-    ShootingSession, ShootingSessionRead, ShootingSessionCreate, ShootingSessionUpdate
-)
-from models.cost_session import CostSession
-from models.accuracy_session import AccuracySession
+from models import ShootingSession
+from schemas.session import ShootingSessionRead, ShootingSessionCreate
 from database import get_session
 from routers.auth import role_required
 from services.user_context import UserContext, UserRole
 from datetime import datetime
+from pydantic import BaseModel
+from typing import Optional
+from datetime import date
 
 router = APIRouter(prefix="/shooting-sessions", tags=["Shooting Sessions"])
+
+
+class ShootingSessionUpdate(BaseModel):
+    date: Optional[date] = None
+    gun_id: Optional[str] = None
+    ammo_id: Optional[str] = None
+    shots: Optional[int] = None
+    cost: Optional[float] = None
+    notes: Optional[str] = None
+    distance_m: Optional[int] = None
+    hits: Optional[int] = None
+    accuracy_percent: Optional[float] = None
+    ai_comment: Optional[str] = None
 
 
 @router.post("/", response_model=ShootingSessionRead)

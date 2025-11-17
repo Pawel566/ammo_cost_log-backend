@@ -6,7 +6,6 @@ import logging
 import os
 from settings import settings
 import models
-from models import shooting_session, cost_session, accuracy_session
 
 logging.basicConfig(
     level=logging.DEBUG if settings.debug else logging.INFO,
