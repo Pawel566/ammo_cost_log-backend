@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, Query
 from sqlmodel import Session
 from typing import List, Optional
-from schemas.maintenance import MaintenanceCreate, MaintenanceUpdate, MaintenanceRead
+from schemas.maintenance import MaintenanceCreate, MaintenanceUpdate, MaintenanceRead, MaintenanceStatus
 from database import get_session
 from routers.auth import role_required
 from services.maintenance_service import MaintenanceService
@@ -27,6 +27,15 @@ async def get_gun_maintenance(
     user: UserContext = Depends(role_required([UserRole.guest, UserRole.user, UserRole.admin]))
 ):
     return await MaintenanceService.list_for_gun(session, user, gun_id)
+
+@router.get("/guns/{gun_id}/status", response_model=MaintenanceStatus)
+async def get_gun_maintenance_status(
+    gun_id: str,
+    session: Session = Depends(get_session),
+    user: UserContext = Depends(role_required([UserRole.guest, UserRole.user, UserRole.admin]))
+):
+    status = await MaintenanceService.get_maintenance_status(session, user, gun_id)
+    return MaintenanceStatus(**status)
 
 @router.post("/guns/{gun_id}/maintenance", response_model=MaintenanceRead)
 async def add_maintenance(
