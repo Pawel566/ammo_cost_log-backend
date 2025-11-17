@@ -23,3 +23,12 @@ class MaintenanceRead(MaintenanceCreate):
     model_config = ConfigDict(from_attributes=True)
 
 
+class MaintenanceStatus(BaseModel):
+    status: str
+    rounds_since_last: int
+    days_since_last: Optional[int]
+    rounds_status: str
+    days_status: str
+    message: Optional[str] = None
+
+

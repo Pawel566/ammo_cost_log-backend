@@ -288,3 +288,67 @@ class MaintenanceService:
         await asyncio.to_thread(session.commit)
         return {"message": f"Konserwacja o ID {maintenance_id} została usunięta"}
 
+    @staticmethod
+    def _get_rounds_status(rounds: int) -> str:
+        if rounds < 300:
+            return "green"
+        elif rounds < 500:
+            return "yellow"
+        else:
+            return "red"
+
+    @staticmethod
+    def _get_days_status(days: int) -> str:
+        if days < 30:
+            return "green"
+        elif days < 60:
+            return "yellow"
+        else:
+            return "red"
+
+    @staticmethod
+    def _get_worst_status(status1: str, status2: str) -> str:
+        if status1 == "red" or status2 == "red":
+            return "red"
+        elif status1 == "yellow" or status2 == "yellow":
+            return "yellow"
+        else:
+            return "green"
+
+    @staticmethod
+    async def get_maintenance_status(session: Session, user: UserContext, gun_id: str) -> dict:
+        await GunService._get_single_gun(session, gun_id, user)
+        
+        query_last = MaintenanceService._query_for_user(user, gun_id).order_by(desc(Maintenance.date)).limit(1)
+        last_maintenance = await asyncio.to_thread(lambda: session.exec(query_last).first())
+        
+        today = date.today()
+        
+        if not last_maintenance:
+            rounds_since_last = await MaintenanceService._calculate_rounds_since_last(
+                session, user, gun_id, date(1900, 1, 1), None
+            )
+            days_since_last = None
+            rounds_status = MaintenanceService._get_rounds_status(rounds_since_last)
+            days_status = "green"
+            overall_status = rounds_status
+            message = "Brak konserwacji w historii"
+        else:
+            rounds_since_last = await MaintenanceService._calculate_rounds_since_last(
+                session, user, gun_id, last_maintenance.date, None
+            )
+            days_since_last = (today - last_maintenance.date).days
+            rounds_status = MaintenanceService._get_rounds_status(rounds_since_last)
+            days_status = MaintenanceService._get_days_status(days_since_last)
+            overall_status = MaintenanceService._get_worst_status(rounds_status, days_status)
+            message = None
+        
+        return {
+            "status": overall_status,
+            "rounds_since_last": rounds_since_last,
+            "days_since_last": days_since_last,
+            "rounds_status": rounds_status,
+            "days_status": days_status,
+            "message": message
+        }
+
