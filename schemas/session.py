@@ -4,16 +4,15 @@ from pydantic import BaseModel, Field, ConfigDict
 from schemas.pagination import PaginatedResponse
 
 
-class SessionCreate(BaseModel):
+class ShootingSessionCreate(BaseModel):
     gun_id: str = Field(min_length=1)
     ammo_id: str = Field(min_length=1)
     date: Optional[str] = None
     shots: int = Field(gt=0)
-
-
-class AccuracySessionCreate(SessionCreate):
-    distance_m: int = Field(gt=0)
-    hits: int = Field(ge=0)
+    cost: Optional[float] = Field(default=None, ge=0)
+    notes: Optional[str] = None
+    distance_m: Optional[int] = Field(default=None, gt=0)
+    hits: Optional[int] = Field(default=None, ge=0)
 
 
 class ShootingSessionRead(BaseModel):
@@ -22,23 +21,11 @@ class ShootingSessionRead(BaseModel):
     ammo_id: str
     date: date
     shots: int = Field(gt=0)
-    cost: float = Field(ge=0)
+    cost: Optional[float] = Field(default=None, ge=0)
     notes: Optional[str] = None
-    user_id: str
-    expires_at: Optional[datetime] = None
-
-    model_config = ConfigDict(from_attributes=True)
-
-
-class AccuracySessionRead(BaseModel):
-    id: str
-    gun_id: str
-    ammo_id: str
-    date: date
-    distance_m: int = Field(gt=0)
-    hits: int = Field(ge=0)
-    shots: int = Field(gt=0)
-    accuracy_percent: Optional[float] = None
+    distance_m: Optional[int] = Field(default=None, gt=0)
+    hits: Optional[int] = Field(default=None, ge=0)
+    accuracy_percent: Optional[float] = Field(default=None, ge=0, le=100)
     ai_comment: Optional[str] = None
     user_id: str
     expires_at: Optional[datetime] = None
@@ -53,6 +40,5 @@ class MonthlySummary(BaseModel):
 
 
 class SessionsListResponse(BaseModel):
-    cost_sessions: PaginatedResponse[ShootingSessionRead]
-    accuracy_sessions: PaginatedResponse[AccuracySessionRead]
+    sessions: PaginatedResponse[ShootingSessionRead]
 

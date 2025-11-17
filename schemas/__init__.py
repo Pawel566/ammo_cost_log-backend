@@ -1,10 +1,8 @@
 from .gun import GunCreate, GunRead
 from .ammo import AmmoCreate, AmmoRead
 from .session import (
-    SessionCreate,
-    AccuracySessionCreate,
+    ShootingSessionCreate,
     ShootingSessionRead,
-    AccuracySessionRead,
     SessionsListResponse,
     MonthlySummary,
 )
@@ -15,10 +13,8 @@ __all__ = [
     "GunRead",
     "AmmoCreate",
     "AmmoRead",
-    "SessionCreate",
-    "AccuracySessionCreate",
+    "ShootingSessionCreate",
     "ShootingSessionRead",
-    "AccuracySessionRead",
     "SessionsListResponse",
     "MonthlySummary",
     "PaginatedResponse",

@@ -39,17 +39,10 @@ class ShootingSessionBase(SQLModel):
     ammo_id: str = Field(foreign_key="ammo.id")
     date: Date
     shots: int = Field(gt=0)
-    cost: float = Field(ge=0)
+    cost: Optional[float] = Field(default=None, ge=0)
     notes: Optional[str] = Field(default=None, max_length=500)
-
-
-class AccuracySessionBase(SQLModel):
-    gun_id: str = Field(foreign_key="guns.id")
-    ammo_id: str = Field(foreign_key="ammo.id")
-    date: Date
-    distance_m: int = Field(gt=0)
-    hits: int = Field(ge=0)
-    shots: int = Field(gt=0)
+    distance_m: Optional[int] = Field(default=None, gt=0)
+    hits: Optional[int] = Field(default=None, ge=0)
     accuracy_percent: Optional[float] = Field(default=None, ge=0, le=100)
     ai_comment: Optional[str] = Field(default=None, max_length=1000)
 
@@ -97,7 +90,6 @@ class Gun(GunBase, table=True):
     user_id: str = Field(index=True, max_length=64)
     expires_at: Optional[datetime] = Field(default=None, nullable=True)
     sessions: List["ShootingSession"] = Relationship(back_populates="gun")
-    accuracy_sessions: List["AccuracySession"] = Relationship(back_populates="gun")
     attachments: List["Attachment"] = Relationship(back_populates="gun")
     maintenance: List["Maintenance"] = Relationship(back_populates="gun")
 
@@ -108,7 +100,6 @@ class Ammo(AmmoBase, table=True):
     user_id: str = Field(index=True, max_length=64)
     expires_at: Optional[datetime] = Field(default=None, nullable=True)
     sessions: List["ShootingSession"] = Relationship(back_populates="ammo")
-    accuracy_sessions: List["AccuracySession"] = Relationship(back_populates="ammo")
 
 
 class ShootingSession(ShootingSessionBase, table=True):
@@ -118,15 +109,6 @@ class ShootingSession(ShootingSessionBase, table=True):
     expires_at: Optional[datetime] = Field(default=None, nullable=True)
     gun: Optional[Gun] = Relationship(back_populates="sessions")
     ammo: Optional[Ammo] = Relationship(back_populates="sessions")
-
-
-class AccuracySession(AccuracySessionBase, table=True):
-    __tablename__ = "accuracy_sessions"
-    id: str = Field(default_factory=lambda: str(uuid4()), primary_key=True)
-    user_id: str = Field(index=True, max_length=64)
-    expires_at: Optional[datetime] = Field(default=None, nullable=True)
-    gun: Optional[Gun] = Relationship(back_populates="accuracy_sessions")
-    ammo: Optional[Ammo] = Relationship(back_populates="accuracy_sessions")
 
 
 class Attachment(AttachmentBase, table=True):

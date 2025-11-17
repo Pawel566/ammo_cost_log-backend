@@ -4,7 +4,7 @@ from datetime import date, datetime
 from collections import defaultdict
 from sqlalchemy import or_, func, cast, String, not_
 from fastapi import HTTPException
-from models import ShootingSession, Ammo, Gun, AccuracySession
+from models import ShootingSession, Ammo, Gun
 import asyncio
 import logging
 from services.user_context import UserContext, UserRole
@@ -106,13 +106,6 @@ class SessionService:
         query = query.where(model.user_id == user.user_id)
         if user.is_guest and hasattr(model, "expires_at"):
             query = query.where(or_(model.expires_at.is_(None), model.expires_at > datetime.utcnow()))
-        if model is ShootingSession:
-            query = query.where(
-                or_(
-                    model.notes.is_(None),
-                    not_(func.lower(model.notes).like("sesja celnościowa%"))
-                )
-            )
         return query
 
     @staticmethod
@@ -151,135 +144,124 @@ class SessionService:
         return await asyncio.to_thread(lambda: session.exec(query).first())
 
     @staticmethod
-    async def get_all_sessions(session: Session, user: UserContext, limit: int, offset: int, search: Optional[str]) -> Dict[str, Dict[str, Any]]:
-        cost_base = SessionService._query_for_user(ShootingSession, user)
-        cost_query = SessionService._apply_session_search(cost_base, ShootingSession, search)
-        cost_count_query = cost_query.with_only_columns(func.count(ShootingSession.id)).order_by(None)
+    async def get_all_sessions(
+        session: Session, 
+        user: UserContext, 
+        limit: int, 
+        offset: int, 
+        search: Optional[str],
+        gun_id: Optional[str] = None,
+        date_from: Optional[str] = None,
+        date_to: Optional[str] = None
+    ) -> Dict[str, Any]:
+        base_query = SessionService._query_for_user(ShootingSession, user)
+        
+        if gun_id:
+            base_query = base_query.where(ShootingSession.gun_id == gun_id)
+        
+        if date_from:
+            try:
+                date_from_parsed = datetime.strptime(date_from, "%Y-%m-%d").date()
+                base_query = base_query.where(ShootingSession.date >= date_from_parsed)
+            except ValueError:
+                pass
+        
+        if date_to:
+            try:
+                date_to_parsed = datetime.strptime(date_to, "%Y-%m-%d").date()
+                base_query = base_query.where(ShootingSession.date <= date_to_parsed)
+            except ValueError:
+                pass
+        
+        query = SessionService._apply_session_search(base_query, ShootingSession, search)
+        count_query = query.with_only_columns(func.count(ShootingSession.id)).order_by(None)
 
-        accuracy_base = SessionService._query_for_user(AccuracySession, user)
-        accuracy_query = SessionService._apply_session_search(accuracy_base, AccuracySession, search)
-        accuracy_count_query = accuracy_query.with_only_columns(func.count(AccuracySession.id)).order_by(None)
-
-        def _run_cost():
-            total = session.exec(cost_count_query).one()
-            items = session.exec(cost_query.offset(offset).limit(limit)).all()
+        def _run():
+            total = session.exec(count_query).one()
+            items = session.exec(query.order_by(ShootingSession.date.desc()).offset(offset).limit(limit)).all()
             return total, items
 
-        def _run_accuracy():
-            total = session.exec(accuracy_count_query).one()
-            items = session.exec(accuracy_query.offset(offset).limit(limit)).all()
-            return total, items
-
-        cost_total, cost_items = await asyncio.to_thread(_run_cost)
-        accuracy_total, accuracy_items = await asyncio.to_thread(_run_accuracy)
+        total, items = await asyncio.to_thread(_run)
 
         return {
-            "cost_sessions": {"total": cost_total, "items": cost_items},
-            "accuracy_sessions": {"total": accuracy_total, "items": accuracy_items}
+            "total": total,
+            "items": items
         }
 
     @staticmethod
-    async def create_cost_session(
+    async def create_shooting_session(
         session: Session,
         user: UserContext,
-        gun_id: str,
-        ammo_id: str,
-        date_value: Optional[Union[str, date]],
-        shots: int
+        data: Any
     ) -> Dict[str, Any]:
-        parsed_date = SessionCalculationService.parse_date(date_value)
-        gun = await SessionService._get_gun(session, gun_id, user)
-        ammo = await SessionService._get_ammo(session, ammo_id, user)
-        SessionValidationService.validate_session_data(gun, ammo, shots)
-        cost = SessionCalculationService.calculate_cost(ammo.price_per_unit, shots)
-        ammo.units_in_package -= shots
+        """
+        Tworzy jedną sesję strzelecką z opcjonalnymi polami kosztu i celności.
+        
+        - Waliduje zgodność broni i amunicji
+        - Oblicza koszt na podstawie price_per_unit i shots
+        - Jeśli distance_m i hits są podane, oblicza celność i zapisuje ją w tej samej sesji
+        - W przeciwnym razie zostawia pola celności puste
+        - Aktualizuje magazyn amunicji
+        - Zwraca strukturę z informacją o sesji i pozostałej liczbie sztuk
+        """
+        parsed_date = SessionCalculationService.parse_date(data.date)
+        gun = await SessionService._get_gun(session, data.gun_id, user)
+        ammo = await SessionService._get_ammo(session, data.ammo_id, user)
+        
+        # Walidacja zgodności broni i amunicji
+        hits = data.hits if data.hits is not None else None
+        SessionValidationService.validate_session_data(gun, ammo, data.shots, hits)
+        
+        # Obliczanie kosztu na podstawie price_per_unit i shots
+        cost = data.cost
+        if cost is None:
+            cost = SessionCalculationService.calculate_cost(ammo.price_per_unit, data.shots)
+        
+        # Obliczanie celności tylko jeśli distance_m i hits są podane
+        accuracy_percent = None
+        if data.distance_m is not None and hits is not None and data.shots > 0:
+            accuracy_percent = SessionCalculationService.calculate_accuracy(hits, data.shots)
+        
+        # Aktualizacja magazynu amunicji
+        ammo.units_in_package -= data.shots
         target_expiration = user.expires_at if user.is_guest else gun.expires_at
+        
         if user.is_guest:
             ammo.expires_at = target_expiration
             gun.expires_at = target_expiration
         elif user.role != UserRole.admin:
             ammo.expires_at = None
             gun.expires_at = None
+        
+        # Tworzenie sesji z opcjonalnymi polami celności
         new_session = ShootingSession(
-            gun_id=gun_id,
-            ammo_id=ammo_id,
+            gun_id=data.gun_id,
+            ammo_id=data.ammo_id,
             date=parsed_date,
-            shots=shots,
+            shots=data.shots,
             cost=cost,
+            notes=data.notes,
+            distance_m=data.distance_m if data.distance_m is not None else None,
+            hits=data.hits if data.hits is not None else None,
+            accuracy_percent=accuracy_percent,
+            ai_comment=None,
             user_id=gun.user_id,
             expires_at=target_expiration
         )
+        
         session.add(new_session)
         session.add(ammo)
         session.add(gun)
         await asyncio.to_thread(session.commit)
         await asyncio.to_thread(session.refresh, new_session)
-        await MaintenanceService.update_last_maintenance_rounds(session, user, gun_id)
+        await MaintenanceService.update_last_maintenance_rounds(session, user, data.gun_id)
+        
+        # Zwracanie struktury z informacją o sesji i pozostałej liczbie sztuk
         return {
             "session": new_session,
             "remaining_ammo": ammo.units_in_package
         }
 
-    @staticmethod
-    async def create_accuracy_session(
-        session: Session,
-        user: UserContext,
-        gun_id: str,
-        ammo_id: str,
-        date_value: Optional[Union[str, date]],
-        distance_m: int,
-        shots: int,
-        hits: int
-    ) -> Dict[str, Any]:
-        parsed_date = SessionCalculationService.parse_date(date_value)
-        gun = await SessionService._get_gun(session, gun_id, user)
-        ammo = await SessionService._get_ammo(session, ammo_id, user)
-        SessionValidationService.validate_session_data(gun, ammo, shots, hits)
-        cost = SessionCalculationService.calculate_cost(ammo.price_per_unit, shots)
-        ammo.units_in_package -= shots
-        accuracy = SessionCalculationService.calculate_accuracy(hits, shots)
-        target_expiration = user.expires_at if user.is_guest else gun.expires_at
-        if user.is_guest:
-            ammo.expires_at = target_expiration
-            gun.expires_at = target_expiration
-        elif user.role != UserRole.admin:
-            ammo.expires_at = None
-            gun.expires_at = None
-        cost_session = ShootingSession(
-            gun_id=gun_id,
-            ammo_id=ammo_id,
-            date=parsed_date,
-            shots=shots,
-            cost=cost,
-            user_id=gun.user_id,
-            expires_at=target_expiration,
-            notes=f"Sesja celnościowa - {hits}/{shots} trafień ({accuracy}%)"
-        )
-        accuracy_session = AccuracySession(
-            gun_id=gun_id,
-            ammo_id=ammo_id,
-            date=parsed_date,
-            distance_m=distance_m,
-            hits=hits,
-            shots=shots,
-            accuracy_percent=accuracy,
-            ai_comment=None,
-            user_id=gun.user_id,
-            expires_at=target_expiration
-        )
-        session.add(cost_session)
-        session.add(accuracy_session)
-        session.add(ammo)
-        session.add(gun)
-        await asyncio.to_thread(session.commit)
-        await MaintenanceService.update_last_maintenance_rounds(session, user, gun_id)
-        await asyncio.to_thread(session.refresh, cost_session)
-        await asyncio.to_thread(session.refresh, accuracy_session)
-        return {
-            "accuracy_session": accuracy_session,
-            "cost_session": cost_session,
-            "remaining_ammo": ammo.units_in_package
-        }
 
     @staticmethod
     async def get_monthly_summary(session: Session, user: UserContext, limit: int, offset: int, search: Optional[str]) -> Dict[str, Any]:
@@ -297,7 +279,8 @@ class SessionService:
 
         for session_data in sessions:
             month_key = session_data.date.strftime("%Y-%m")
-            cost_summary[month_key] += float(session_data.cost)
+            if session_data.cost:
+                cost_summary[month_key] += float(session_data.cost)
             shot_summary[month_key] += session_data.shots
 
         summary = [

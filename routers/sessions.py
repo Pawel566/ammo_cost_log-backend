@@ -6,8 +6,8 @@ from routers.auth import role_required
 from services.session_service import SessionService
 from services.user_context import UserContext, UserRole
 from schemas.session import (
-    SessionCreate,
-    AccuracySessionCreate,
+    ShootingSessionCreate,
+    ShootingSessionRead,
     SessionsListResponse,
     MonthlySummary,
 )
@@ -27,55 +27,23 @@ async def get_all_sessions(
     limit: int = Query(20, ge=1, le=100),
     offset: int = Query(0, ge=0),
     search: Optional[str] = Query(default=None, min_length=1),
-    gun_id: Optional[str] = Query(default=None)
+    gun_id: Optional[str] = Query(default=None),
+    date_from: Optional[str] = Query(default=None),
+    date_to: Optional[str] = Query(default=None)
 ):
-    result = await SessionService.get_all_sessions(session, user, limit, offset, search)
-    if gun_id:
-        if result.get("cost_sessions"):
-            result["cost_sessions"]["items"] = [
-                s for s in result["cost_sessions"]["items"] if s.gun_id == gun_id
-            ]
-            result["cost_sessions"]["total"] = len(result["cost_sessions"]["items"])
-        if result.get("accuracy_sessions"):
-            result["accuracy_sessions"]["items"] = [
-                s for s in result["accuracy_sessions"]["items"] if s.gun_id == gun_id
-            ]
-            result["accuracy_sessions"]["total"] = len(result["accuracy_sessions"]["items"])
-    return result
+    result = await SessionService.get_all_sessions(
+        session, user, limit, offset, search, gun_id, date_from, date_to
+    )
+    return {"sessions": result}
 
 
-@router.post("/cost", response_model=Dict[str, Any])
-async def add_cost_session(
-    data: SessionCreate,
+@router.post("", response_model=Dict[str, Any])
+async def create_shooting_session(
+    data: ShootingSessionCreate,
     session: Session = Depends(get_session),
     user: UserContext = Depends(role_required([UserRole.guest, UserRole.user, UserRole.admin]))
 ):
-    return await SessionService.create_cost_session(
-        session,
-        user,
-        data.gun_id,
-        data.ammo_id,
-        data.date,
-        data.shots
-    )
-
-
-@router.post("/accuracy", response_model=Dict[str, Any])
-async def add_accuracy_session(
-    data: AccuracySessionCreate,
-    session: Session = Depends(get_session),
-    user: UserContext = Depends(role_required([UserRole.guest, UserRole.user, UserRole.admin]))
-):
-    return await SessionService.create_accuracy_session(
-        session,
-        user,
-        data.gun_id,
-        data.ammo_id,
-        data.date,
-        data.distance_m,
-        data.shots,
-        data.hits
-    )
+    return await SessionService.create_shooting_session(session, user, data)
 
 
 @router.get("/summary", response_model=MonthlySummaryResponse)
