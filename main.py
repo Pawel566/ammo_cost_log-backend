@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from database import init_db
-from routers import guns, ammo, sessions, auth, maintenance, settings as settings_router, account, attachments
+from routers import guns, ammo, sessions, auth, maintenance, settings as settings_router, account, attachments, shooting_sessions
 import logging
 import os
 from settings import settings
@@ -39,6 +39,8 @@ app.include_router(maintenance.router, prefix="/api/maintenance", tags=["Konserw
 app.include_router(settings_router.router, prefix="/api/settings", tags=["Ustawienia"])
 app.include_router(account.router, prefix="/api/account", tags=["Konto"])
 app.include_router(attachments.router, prefix="/api", tags=["Wyposażenie"])
+app.include_router(shooting_sessions.router, prefix="/api", tags=["Sesje strzeleckie"])
+
 
 @app.get("/")
 def root():
