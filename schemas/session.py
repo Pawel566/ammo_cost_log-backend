@@ -1,8 +1,7 @@
+from pydantic import BaseModel, ConfigDict, Field
 from datetime import date, datetime
 from typing import Optional
-from pydantic import BaseModel, Field, ConfigDict
 from schemas.pagination import PaginatedResponse
-
 
 class ShootingSessionCreate(BaseModel):
     gun_id: str = Field(min_length=1)
@@ -16,10 +15,12 @@ class ShootingSessionCreate(BaseModel):
 
 
 class ShootingSessionRead(BaseModel):
+    model_config = ConfigDict(from_attributes=True, populate_by_name=True)
+
     id: str
+    date: date = Field(alias="session_date")  # alias -> z session_date
     gun_id: str
     ammo_id: str
-    date: date
     shots: int = Field(gt=0)
     cost: Optional[float] = Field(default=None, ge=0)
     notes: Optional[str] = None
@@ -29,8 +30,6 @@ class ShootingSessionRead(BaseModel):
     ai_comment: Optional[str] = None
     user_id: str
     expires_at: Optional[datetime] = None
-
-    model_config = ConfigDict(from_attributes=True)
 
 
 class MonthlySummary(BaseModel):

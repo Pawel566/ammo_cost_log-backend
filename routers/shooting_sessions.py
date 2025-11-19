@@ -35,18 +35,36 @@ async def create_shooting_session(
     db: Session = Depends(get_session),
     user: UserContext = Depends(role_required([UserRole.guest, UserRole.user, UserRole.admin]))
 ):
-    data_dict = session_data.model_dump()
-    # Mapowanie 'date' z schematu na 'session_date' w modelu
-    if 'date' in data_dict:
-        data_dict['session_date'] = data_dict.pop('date')
-    ss = ShootingSession(**data_dict)
-    ss.user_id = user.user_id
-    if user.is_guest:
-        ss.expires_at = user.expires_at
+    from datetime import datetime as dt
+    parsed_date = None
+    if session_data.date:
+        if isinstance(session_data.date, str):
+            parsed_date = dt.strptime(session_data.date, "%Y-%m-%d").date()
+        else:
+            parsed_date = session_data.date
+    else:
+        parsed_date = dt.now().date()
+    
+    ss = ShootingSession(
+        gun_id=session_data.gun_id,
+        ammo_id=session_data.ammo_id,
+        session_date=parsed_date,
+        shots=session_data.shots,
+        cost=session_data.cost,
+        notes=session_data.notes,
+        distance_m=session_data.distance_m,
+        hits=session_data.hits,
+        accuracy_percent=session_data.accuracy_percent,
+        ai_comment=session_data.ai_comment,
+        user_id=user.user_id,
+        expires_at=user.expires_at if user.is_guest else None
+    )
+
     db.add(ss)
     await asyncio.to_thread(db.commit)
     await asyncio.to_thread(db.refresh, ss)
-    return ss
+
+    return ShootingSessionRead.model_validate(ss)
 
 
 @router.get("/", response_model=list[ShootingSessionRead])
@@ -61,7 +79,8 @@ async def get_all_sessions(
             query = query.where(
                 or_(ShootingSession.expires_at.is_(None), ShootingSession.expires_at > datetime.utcnow())
             )
-    return await asyncio.to_thread(lambda: db.exec(query).all())
+    sessions = await asyncio.to_thread(lambda: db.exec(query).all())
+    return [ShootingSessionRead.model_validate(s) for s in sessions]
 
 
 @router.get("/{session_id}", response_model=ShootingSessionRead)
@@ -73,14 +92,11 @@ async def get_session(
     ss = await asyncio.to_thread(db.get, ShootingSession, session_id)
     if not ss:
         raise HTTPException(status_code=404, detail="Session not found")
-    
-    if user.role != UserRole.admin:
-        if ss.user_id != user.user_id:
-            raise HTTPException(status_code=404, detail="Session not found")
-        if user.is_guest and ss.expires_at and ss.expires_at <= datetime.utcnow():
-            raise HTTPException(status_code=404, detail="Session not found")
-    
-    return ss
+
+    if user.role != UserRole.admin and ss.user_id != user.user_id:
+        raise HTTPException(status_code=404, detail="Session not found")
+
+    return ShootingSessionRead.model_validate(ss)
 
 
 @router.patch("/{session_id}", response_model=ShootingSessionRead)
@@ -93,43 +109,20 @@ async def update_session(
     ss = await asyncio.to_thread(db.get, ShootingSession, session_id)
     if not ss:
         raise HTTPException(status_code=404, detail="Session not found")
-    
-    if user.role != UserRole.admin:
-        if ss.user_id != user.user_id:
-            raise HTTPException(status_code=404, detail="Session not found")
-        if user.is_guest and ss.expires_at and ss.expires_at <= datetime.utcnow():
-            raise HTTPException(status_code=404, detail="Session not found")
 
     update_data = session_data.model_dump(exclude_unset=True)
-    
-    # Obsługa aliasu daty i przeliczanie kosztu
-    shots_changed = 'shots' in update_data
-    ammo_changed = 'ammo_id' in update_data
-    cost_provided = 'cost' in update_data
-    
-    # Jeśli zmieniono shots lub ammo_id, a cost nie jest podane, przelicz koszt
-    if (shots_changed or ammo_changed) and not cost_provided:
-        # Użyj nowego ammo_id jeśli jest podane, w przeciwnym razie użyj istniejącego
-        ammo_id = update_data.get('ammo_id', ss.ammo_id)
-        ammo = await asyncio.to_thread(db.get, Ammo, ammo_id)
-        if ammo:
-            # Użyj nowej liczby strzałów jeśli jest podana, w przeciwnym razie użyj istniejącej
-            shots = update_data.get('shots', ss.shots)
-            cost = round(ammo.price_per_unit * shots, 2)
-            update_data['cost'] = cost
-    
-    # Aktualizuj pola, obsługując alias daty
+
+    if "date" in update_data:
+        setattr(ss, "session_date", update_data.pop("date"))
+
     for key, value in update_data.items():
-        # Obsłuż alias daty
-        if key == 'date':
-            setattr(ss, 'session_date', value)
-        else:
-            setattr(ss, key, value)
+        setattr(ss, key, value)
 
     db.add(ss)
     await asyncio.to_thread(db.commit)
     await asyncio.to_thread(db.refresh, ss)
-    return ss
+
+    return ShootingSessionRead.model_validate(ss)
 
 
 @router.delete("/{session_id}")
