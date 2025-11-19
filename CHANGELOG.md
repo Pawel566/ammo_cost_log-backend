@@ -1,6 +1,6 @@
 # Changelog
 
-## [0.3.5] – 2025-01-XX
+## [0.3.5] – 2025-11-17
 ### Dodano
 - Endpointy zarządzania kontem użytkownika (`/api/account`)
 - Moduł konserwacji broni (`/api/maintenance`)
