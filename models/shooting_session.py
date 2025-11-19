@@ -1,4 +1,5 @@
 from sqlmodel import SQLModel, Field, Relationship
+from sqlalchemy import Column, Date
 from typing import Optional
 from uuid import uuid4
 from datetime import datetime, date
@@ -7,7 +8,7 @@ from datetime import datetime, date
 class ShootingSessionBase(SQLModel):
     gun_id: str = Field(index=True, foreign_key="guns.id")
     ammo_id: str = Field(index=True, foreign_key="ammo.id")
-    session_date: date = Field(alias="date")
+    session_date: date = Field(sa_column=Column(Date), alias="date")
     shots: int = Field(gt=0)
     cost: Optional[float] = Field(default=None, ge=0)
     notes: Optional[str] = Field(default=None, max_length=500)
@@ -22,5 +23,6 @@ class ShootingSession(ShootingSessionBase, table=True):
     id: str = Field(default_factory=lambda: str(uuid4()), primary_key=True)
     user_id: str = Field(index=True, max_length=64)
     expires_at: Optional[datetime] = Field(default=None, nullable=True)
+
     gun: "Gun" = Relationship(back_populates="sessions")
     ammo: "Ammo" = Relationship(back_populates="sessions")
