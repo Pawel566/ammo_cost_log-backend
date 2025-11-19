@@ -30,18 +30,36 @@ python3 -m uvicorn main:app --reload --host 0.0.0.0 --port 8000
 
 ## 📡 API Endpoints
 
+### Broń i Amunicja
 - `GET /api/guns/` - lista broni (obsługuje `limit`, `offset`, `search`)
 - `POST /api/guns/` - dodaj broń
 - `PUT /api/guns/{id}` - edytuj broń
 - `DELETE /api/guns/{id}` - usuń broń
 - `GET /api/ammo/` - lista amunicji (obsługuje `limit`, `offset`, `search`)
 - `POST /api/ammo/` - dodaj amunicję
+
+### Sesje
 - `POST /api/sessions/cost` - dodaj sesję kosztową
 - `POST /api/sessions/accuracy` - dodaj sesję celnościową
 - `GET /api/sessions/` - lista sesji kosztowych i celnościowych (obsługuje `limit`, `offset`, `search`)
 - `GET /api/sessions/summary` - statystyki miesięczne (obsługuje `limit`, `offset`, `search`)
+- `GET /api/shooting-sessions/` - lista sesji strzeleckich
+- `POST /api/shooting-sessions/` - dodaj sesję strzelecką
+
+### Uwierzytelnianie i Konto
 - `POST /api/auth/login` - logowanie
 - `POST /api/auth/register` - rejestracja
+- `GET /api/account/` - dane konta użytkownika
+
+### Konserwacja i Wyposażenie
+- `GET /api/maintenance/` - lista konserwacji
+- `POST /api/maintenance/` - dodaj konserwację
+- `GET /api/attachments/` - lista wyposażenia/akcesoriów
+- `POST /api/attachments/` - dodaj wyposażenie
+
+### Ustawienia
+- `GET /api/settings/` - ustawienia użytkownika
+- `PUT /api/settings/` - aktualizuj ustawienia
 
 Żądania bez nagłówka `Authorization` otrzymują w odpowiedzi identyfikator `X-Guest-Session` oraz `X-Guest-Session-Expires-At`. Do kolejnych wywołań należy dołączać pierwszy nagłówek, aby utrzymać 24-godzinny sandbox gościa.
 

@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.3.5] – 2025-01-XX
+### Dodano
+- Endpointy zarządzania kontem użytkownika (`/api/account`)
+- Moduł konserwacji broni (`/api/maintenance`)
+- Endpointy ustawień użytkownika (`/api/settings`)
+- Zarządzanie wyposażeniem i akcesoriami (`/api/attachments`)
+- Endpointy sesji strzeleckich (`/api/shooting-sessions`)
+- Rozszerzone modele danych dla konserwacji i wyposażenia
+
+### Zmieniono
+- Rozszerzona funkcjonalność API o nowe moduły zarządzania sprzętem
+- Ulepszona struktura endpointów dla lepszej organizacji funkcjonalności
+
 ## [0.3.1] – 2025-01-XX
 ### Dodano
 - Pełny system autoryzacji użytkowników (rejestracja, logowanie, wylogowanie)
