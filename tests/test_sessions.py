@@ -2,7 +2,8 @@ import pytest
 from sqlmodel import Session
 from services.session_service import SessionService
 from services.user_context import UserContext, UserRole
-from models import Gun, Ammo
+from models.gun import Gun
+from models.ammo import Ammo
 
 
 @pytest.mark.asyncio

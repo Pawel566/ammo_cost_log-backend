@@ -1,27 +1,3 @@
-from .gun import Gun, GunBase, GunUpdate
-from .ammo import Ammo, AmmoBase, AmmoUpdate, AmmoType
-from .shooting_session import ShootingSession, ShootingSessionBase
-from .attachment import Attachment, AttachmentBase, AttachmentType
-from .maintenance import Maintenance, MaintenanceBase
-from .user import User, UserBase, UserSettings, UserSettingsBase
+# Modele importujemy bezpośrednio z plików
 
-__all__ = [
-    "Gun",
-    "GunBase",
-    "GunUpdate",
-    "Ammo",
-    "AmmoBase",
-    "AmmoUpdate",
-    "AmmoType",
-    "ShootingSession",
-    "ShootingSessionBase",
-    "Attachment",
-    "AttachmentBase",
-    "AttachmentType",
-    "Maintenance",
-    "MaintenanceBase",
-    "User",
-    "UserBase",
-    "UserSettings",
-    "UserSettingsBase",
-]
+# Ten plik zostaje celowo pusty

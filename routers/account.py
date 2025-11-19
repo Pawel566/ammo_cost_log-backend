@@ -6,7 +6,7 @@ from routers.auth import get_current_user
 from services.account_service import AccountService
 from services.user_context import UserContext
 from routers.auth import supabase
-from models import User
+from models.user import User
 from fastapi.security import HTTPAuthorizationCredentials
 from routers.auth import security
 import asyncio

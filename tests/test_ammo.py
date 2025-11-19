@@ -1,6 +1,6 @@
 import pytest
 from sqlmodel import Session
-from models import Ammo
+from models.ammo import Ammo
 from services.ammo_service import AmmoService
 from services.user_context import UserContext, UserRole
 from schemas.ammo import AmmoCreate

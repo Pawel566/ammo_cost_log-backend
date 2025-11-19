@@ -3,7 +3,12 @@ from typing import Dict, Any, Optional
 import asyncio
 from fastapi import HTTPException
 from supabase import Client
-from models import Gun, Ammo, ShootingSession, Attachment, Maintenance, UserSettings, User
+from models.gun import Gun
+from models.ammo import Ammo
+from models.shooting_session import ShootingSession
+from models.attachment import Attachment
+from models.maintenance import Maintenance
+from models.user import UserSettings, User
 from services.user_context import UserContext
 from services.error_handler import ErrorHandler
 

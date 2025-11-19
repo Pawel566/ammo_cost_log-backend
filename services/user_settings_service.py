@@ -4,7 +4,7 @@ import asyncio
 from datetime import datetime
 from sqlalchemy import or_
 from fastapi import HTTPException
-from models import UserSettings
+from models.user import UserSettings
 from services.user_context import UserContext, UserRole
 
 

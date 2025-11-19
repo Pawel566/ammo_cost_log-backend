@@ -4,7 +4,8 @@ import asyncio
 from datetime import datetime
 from sqlalchemy import or_
 from fastapi import HTTPException
-from models import Attachment, Gun, AttachmentType
+from models.attachment import Attachment, AttachmentType
+from models.gun import Gun
 from services.user_context import UserContext, UserRole
 from services.gun_service import GunService
 

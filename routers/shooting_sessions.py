@@ -2,7 +2,7 @@ from fastapi import APIRouter, HTTPException, Depends
 from sqlmodel import Session, select
 from sqlalchemy import or_
 import asyncio
-from models import ShootingSession
+from models.shooting_session import ShootingSession
 from schemas.session import ShootingSessionRead, ShootingSessionCreate
 from database import get_session
 from routers.auth import role_required

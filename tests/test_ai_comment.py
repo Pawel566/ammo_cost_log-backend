@@ -1,6 +1,6 @@
 import pytest
 from services.session_service import AIService
-from models import Gun
+from models.gun import Gun
 
 
 @pytest.mark.asyncio

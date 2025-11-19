@@ -4,7 +4,7 @@ import asyncio
 from datetime import datetime
 from sqlalchemy import or_, func
 from fastapi import HTTPException
-from models import Ammo, AmmoUpdate
+from models.ammo import Ammo, AmmoUpdate
 from schemas.ammo import AmmoCreate
 from services.user_context import UserContext, UserRole
 

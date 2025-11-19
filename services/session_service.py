@@ -4,7 +4,9 @@ from datetime import date, datetime
 from collections import defaultdict
 from sqlalchemy import or_, func, cast, String, not_
 from fastapi import HTTPException
-from models import ShootingSession, Ammo, Gun
+from models.shooting_session import ShootingSession
+from models.ammo import Ammo
+from models.gun import Gun
 import asyncio
 import logging
 from services.user_context import UserContext, UserRole

@@ -4,7 +4,7 @@ from typing import List, Optional
 from pydantic import BaseModel, Field
 from schemas.ammo import AmmoCreate, AmmoRead
 from schemas.pagination import PaginatedResponse
-from models import AmmoUpdate
+from models.ammo import AmmoUpdate
 from database import get_session
 from routers.auth import role_required
 from services.ammo_service import AmmoService

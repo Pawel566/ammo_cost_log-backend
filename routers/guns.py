@@ -3,7 +3,7 @@ from sqlmodel import Session
 from typing import Optional
 from schemas.gun import GunCreate, GunRead
 from schemas.pagination import PaginatedResponse
-from models import GunUpdate
+from models.gun import GunUpdate
 from database import get_session
 from routers.auth import role_required
 from services.gun_service import GunService

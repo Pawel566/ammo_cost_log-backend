@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import Optional
 from pydantic import BaseModel, Field, ConfigDict
-from models import AmmoType
+from models.ammo import AmmoType
 
 
 class AmmoCreate(BaseModel):

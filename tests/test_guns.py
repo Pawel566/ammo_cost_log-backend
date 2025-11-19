@@ -1,6 +1,6 @@
 import pytest
 from sqlmodel import Session
-from models import Gun
+from models.gun import Gun
 from services.gun_service import GunService
 from services.user_context import UserContext, UserRole
 from schemas.gun import GunCreate
