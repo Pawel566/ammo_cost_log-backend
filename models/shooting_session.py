@@ -7,7 +7,7 @@ from datetime import datetime, date
 class ShootingSessionBase(SQLModel):
     gun_id: str = Field(index=True, foreign_key="guns.id")
     ammo_id: str = Field(index=True, foreign_key="ammo.id")
-    date: date
+    session_date: date = Field(alias="date")
     shots: int = Field(gt=0)
     cost: Optional[float] = Field(default=None, ge=0)
     notes: Optional[str] = Field(default=None, max_length=500)
