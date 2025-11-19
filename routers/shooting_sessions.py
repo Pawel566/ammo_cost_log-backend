@@ -10,13 +10,13 @@ from services.user_context import UserContext, UserRole
 from datetime import datetime
 from pydantic import BaseModel
 from typing import Optional
-from datetime import date
+from datetime import date as DtDate
 
 router = APIRouter(prefix="/shooting-sessions", tags=["Shooting Sessions"])
 
 
 class ShootingSessionUpdate(BaseModel):
-    date: Optional[date] = None
+    date: Optional[DtDate] = None
     gun_id: Optional[str] = None
     ammo_id: Optional[str] = None
     shots: Optional[int] = None
