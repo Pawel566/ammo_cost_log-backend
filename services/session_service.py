@@ -119,7 +119,7 @@ class SessionService:
         conditions = [
             func.lower(Gun.name).like(pattern),
             func.lower(Ammo.name).like(pattern),
-            cast(model.date, String).like(pattern)
+            cast(model.session_date, String).like(pattern)
         ]
         if hasattr(model, "notes"):
             conditions.append(func.lower(func.coalesce(model.notes, "")).like(pattern))
@@ -164,14 +164,14 @@ class SessionService:
         if date_from:
             try:
                 date_from_parsed = datetime.strptime(date_from, "%Y-%m-%d").date()
-                base_query = base_query.where(ShootingSession.date >= date_from_parsed)
+                base_query = base_query.where(ShootingSession.session_date >= date_from_parsed)
             except ValueError:
                 pass
         
         if date_to:
             try:
                 date_to_parsed = datetime.strptime(date_to, "%Y-%m-%d").date()
-                base_query = base_query.where(ShootingSession.date <= date_to_parsed)
+                base_query = base_query.where(ShootingSession.session_date <= date_to_parsed)
             except ValueError:
                 pass
         
@@ -180,7 +180,7 @@ class SessionService:
 
         def _run():
             total = session.exec(count_query).one()
-            items = session.exec(query.order_by(ShootingSession.date.desc()).offset(offset).limit(limit)).all()
+            items = session.exec(query.order_by(ShootingSession.session_date.desc()).offset(offset).limit(limit)).all()
             return total, items
 
         total, items = await asyncio.to_thread(_run)
@@ -239,7 +239,7 @@ class SessionService:
         new_session = ShootingSession(
             gun_id=data.gun_id,
             ammo_id=data.ammo_id,
-            date=parsed_date,
+            session_date=parsed_date,
             shots=data.shots,
             cost=cost,
             notes=data.notes,
@@ -280,7 +280,7 @@ class SessionService:
         shot_summary = defaultdict(int)
 
         for session_data in sessions:
-            month_key = session_data.date.strftime("%Y-%m")
+            month_key = session_data.session_date.strftime("%Y-%m")
             if session_data.cost:
                 cost_summary[month_key] += float(session_data.cost)
             shot_summary[month_key] += session_data.shots

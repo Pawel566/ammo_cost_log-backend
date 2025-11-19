@@ -3,6 +3,7 @@ from sqlmodel import Session, select
 from sqlalchemy import or_
 import asyncio
 from models.shooting_session import ShootingSession
+from models.ammo import Ammo
 from schemas.session import ShootingSessionRead, ShootingSessionCreate
 from database import get_session
 from routers.auth import role_required
@@ -34,7 +35,11 @@ async def create_shooting_session(
     db: Session = Depends(get_session),
     user: UserContext = Depends(role_required([UserRole.guest, UserRole.user, UserRole.admin]))
 ):
-    ss = ShootingSession.model_validate(session_data)
+    data_dict = session_data.model_dump()
+    # Mapowanie 'date' z schematu na 'session_date' w modelu
+    if 'date' in data_dict:
+        data_dict['session_date'] = data_dict.pop('date')
+    ss = ShootingSession(**data_dict)
     ss.user_id = user.user_id
     if user.is_guest:
         ss.expires_at = user.expires_at
@@ -96,8 +101,30 @@ async def update_session(
             raise HTTPException(status_code=404, detail="Session not found")
 
     update_data = session_data.model_dump(exclude_unset=True)
+    
+    # Obsługa aliasu daty i przeliczanie kosztu
+    shots_changed = 'shots' in update_data
+    ammo_changed = 'ammo_id' in update_data
+    cost_provided = 'cost' in update_data
+    
+    # Jeśli zmieniono shots lub ammo_id, a cost nie jest podane, przelicz koszt
+    if (shots_changed or ammo_changed) and not cost_provided:
+        # Użyj nowego ammo_id jeśli jest podane, w przeciwnym razie użyj istniejącego
+        ammo_id = update_data.get('ammo_id', ss.ammo_id)
+        ammo = await asyncio.to_thread(db.get, Ammo, ammo_id)
+        if ammo:
+            # Użyj nowej liczby strzałów jeśli jest podana, w przeciwnym razie użyj istniejącej
+            shots = update_data.get('shots', ss.shots)
+            cost = round(ammo.price_per_unit * shots, 2)
+            update_data['cost'] = cost
+    
+    # Aktualizuj pola, obsługując alias daty
     for key, value in update_data.items():
-        setattr(ss, key, value)
+        # Obsłuż alias daty
+        if key == 'date':
+            setattr(ss, 'session_date', value)
+        else:
+            setattr(ss, key, value)
 
     db.add(ss)
     await asyncio.to_thread(db.commit)

@@ -29,10 +29,10 @@ class MaintenanceService:
         query_sessions = select(ShootingSession).where(
             ShootingSession.gun_id == gun_id,
             ShootingSession.user_id == user.user_id,
-            ShootingSession.date > last_maintenance_date
+            ShootingSession.session_date > last_maintenance_date
         )
         if until_date:
-            query_sessions = query_sessions.where(ShootingSession.date <= until_date)
+            query_sessions = query_sessions.where(ShootingSession.session_date <= until_date)
         if user.is_guest:
             query_sessions = query_sessions.where(
                 or_(ShootingSession.expires_at.is_(None), ShootingSession.expires_at > datetime.utcnow())
