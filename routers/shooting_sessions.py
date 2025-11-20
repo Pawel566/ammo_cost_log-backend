@@ -145,7 +145,10 @@ async def update_session(
     # Parsuj datę jeśli jest podana
     if "date" in update_data and update_data["date"] is not None:
         from services.session_service import SessionCalculationService
-        update_data["date"] = SessionCalculationService.parse_date(update_data["date"])
+        try:
+            update_data["date"] = SessionCalculationService.parse_date(update_data["date"])
+        except Exception as e:
+            raise HTTPException(status_code=400, detail=str(e))
     
     # Walidacja przed aktualizacją amunicji
     if "gun_id" in update_data or "ammo_id" in update_data or "shots" in update_data or "hits" in update_data:
@@ -250,15 +253,18 @@ async def update_session(
                     new_ammo.units_in_package -= new_shots
                     db.add(new_ammo)
     
-    # Aktualizuj tylko pola, które są w update_data (nie ustawiaj None jeśli nie było w update_data)
+    # Aktualizuj pola z update_data
     for key, value in update_data.items():
-        if value is not None or key in ["notes", "cost", "distance_m", "hits", "accuracy_percent"]:
-            # Dla opcjonalnych pól, None jest dozwolone
-            setattr(ss, key, value)
+        setattr(ss, key, value)
 
     db.add(ss)
-    await asyncio.to_thread(db.commit)
-    await asyncio.to_thread(db.refresh, ss)
+    try:
+        await asyncio.to_thread(db.commit)
+        await asyncio.to_thread(db.refresh, ss)
+    except Exception as e:
+        await asyncio.to_thread(db.rollback)
+        raise HTTPException(status_code=500, detail=f"Błąd podczas aktualizacji sesji: {str(e)}")
+    
     return ShootingSessionRead(
         id=ss.id,
         gun_id=ss.gun_id,
@@ -301,8 +307,16 @@ async def delete_session(
             ammo.units_in_package += ss.shots
         db.add(ammo)
 
-    await asyncio.to_thread(db.delete, ss)
-    await asyncio.to_thread(db.commit)
+    def _delete_session():
+        db.delete(ss)
+        db.commit()
+    
+    try:
+        await asyncio.to_thread(_delete_session)
+    except Exception as e:
+        await asyncio.to_thread(db.rollback)
+        raise HTTPException(status_code=500, detail=f"Błąd podczas usuwania sesji: {str(e)}")
+    
     return {"message": "Session deleted"}
 
 
