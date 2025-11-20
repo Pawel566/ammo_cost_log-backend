@@ -19,7 +19,7 @@ class ShootingSessionRead(BaseModel):
     id: str
     gun_id: str
     ammo_id: str
-    date: date
+    date: str
     shots: int = Field(gt=0)
     cost: Optional[float] = Field(default=None, ge=0)
     notes: Optional[str] = None
@@ -27,7 +27,7 @@ class ShootingSessionRead(BaseModel):
     hits: Optional[int] = Field(default=None, ge=0)
     accuracy_percent: Optional[float] = Field(default=None, ge=0, le=100)
     ai_comment: Optional[str] = None
-    user_id: str
+    user_id: Optional[str] = None
     expires_at: Optional[datetime] = None
 
     model_config = ConfigDict(from_attributes=True)
