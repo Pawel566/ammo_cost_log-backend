@@ -101,8 +101,9 @@ async def get_session(
     if user.role != UserRole.admin:
         if ss.user_id != user.user_id:
             raise HTTPException(status_code=404, detail="Session not found")
-        if user.is_guest and ss.expires_at and ss.expires_at <= datetime.utcnow():
-            raise HTTPException(status_code=404, detail="Session not found")
+        if user.is_guest:
+            if ss.expires_at and ss.expires_at <= datetime.utcnow():
+                raise HTTPException(status_code=404, detail="Session not found")
     
     return ShootingSessionRead(
         id=ss.id,
@@ -135,12 +136,14 @@ async def update_session(
     if user.role != UserRole.admin:
         if ss.user_id != user.user_id:
             raise HTTPException(status_code=404, detail="Session not found")
-        if user.is_guest and ss.expires_at and ss.expires_at <= datetime.utcnow():
-            raise HTTPException(status_code=404, detail="Session not found")
+        if user.is_guest:
+            if ss.expires_at and ss.expires_at <= datetime.utcnow():
+                raise HTTPException(status_code=404, detail="Session not found")
 
-    update_data = session_data.model_dump(exclude_unset=True)
+    update_data = session_data.model_dump(exclude_unset=True, exclude_none=False)
     
-    if "date" in update_data and update_data["date"]:
+    # Parsuj datę jeśli jest podana
+    if "date" in update_data and update_data["date"] is not None:
         from services.session_service import SessionCalculationService
         update_data["date"] = SessionCalculationService.parse_date(update_data["date"])
     
@@ -155,17 +158,67 @@ async def update_session(
         from models import Gun, Ammo
         gun = await SessionService._get_gun(db, gun_id, user)
         ammo = await SessionService._get_ammo(db, ammo_id, user)
-        SessionValidationService.validate_session_data(gun, ammo, shots, hits)
         
-        if "distance_m" in update_data and update_data["distance_m"] is not None and hits is not None and shots > 0:
+        # Podstawowa walidacja
+        if not gun:
+            raise HTTPException(status_code=404, detail="Broń nie została znaleziona")
+        if not ammo:
+            raise HTTPException(status_code=404, detail="Amunicja nie została znaleziona")
+        if gun.user_id != ammo.user_id:
+            raise HTTPException(status_code=400, detail="Wybrana broń i amunicja należą do różnych użytkowników")
+        if hits is not None and (hits < 0 or hits > shots):
+            raise HTTPException(
+                status_code=400,
+                detail="Liczba trafień musi być między 0 a całkowitą liczbą strzałów"
+            )
+        
+        # Przy edycji, jeśli zwiększamy liczbę strzałów lub zmieniamy amunicję, 
+        # musimy sprawdzić dostępność. Tymczasowo przywróćmy starą amunicję do walidacji.
+        old_shots = ss.shots
+        old_ammo_id = ss.ammo_id
+        shots_diff = shots - old_shots if "shots" in update_data else 0
+        ammo_changed = "ammo_id" in update_data and ammo_id != old_ammo_id
+        
+        # Tymczasowo przywróć starą amunicję dla walidacji (jeśli zwiększamy strzały tej samej amunicji)
+        temp_ammo = None
+        if shots_diff > 0 and not ammo_changed and old_ammo_id == ammo_id:
+            temp_ammo = await SessionService._get_ammo(db, old_ammo_id, user)
+            if temp_ammo and temp_ammo.units_in_package is not None:
+                # Tymczasowo dodaj z powrotem stare strzały dla walidacji
+                temp_ammo.units_in_package += old_shots
+        
+        try:
+            # Waliduj dostępność amunicji tylko jeśli zwiększamy strzały lub zmieniamy amunicję
+            if shots_diff > 0 or ammo_changed:
+                # Sprawdź zgodność kalibru
+                if not SessionValidationService.validate_ammo_gun_compatibility(ammo, gun):
+                    raise HTTPException(
+                        status_code=400,
+                        detail="Wybrana amunicja nie pasuje do kalibru broni"
+                    )
+                # Sprawdź dostępność amunicji
+                if ammo.units_in_package is None or ammo.units_in_package < shots:
+                    raise HTTPException(
+                        status_code=400,
+                        detail=f"Za mało amunicji. Pozostało tylko {ammo.units_in_package or 0} sztuk."
+                    )
+        finally:
+            # Przywróć stan amunicji
+            if temp_ammo and temp_ammo.units_in_package is not None:
+                temp_ammo.units_in_package -= old_shots
+        
+        # Przelicz accuracy jeśli mamy wszystkie potrzebne dane
+        # Użyj wartości z update_data jeśli są, w przeciwnym razie użyj wartości z ss
+        final_distance_m = update_data.get("distance_m") if "distance_m" in update_data else ss.distance_m
+        final_hits = update_data.get("hits") if "hits" in update_data else ss.hits
+        final_shots = update_data.get("shots") if "shots" in update_data else ss.shots
+        
+        if final_distance_m is not None and final_hits is not None and final_shots > 0:
             from services.session_service import SessionCalculationService
-            update_data["accuracy_percent"] = SessionCalculationService.calculate_accuracy(hits, shots)
-        elif "hits" in update_data or "shots" in update_data:
-            distance_m = update_data.get("distance_m", ss.distance_m)
-            if distance_m is not None and hits is not None and shots > 0:
-                from services.session_service import SessionCalculationService
-                update_data["accuracy_percent"] = SessionCalculationService.calculate_accuracy(hits, shots)
-            else:
+            update_data["accuracy_percent"] = SessionCalculationService.calculate_accuracy(final_hits, final_shots)
+        elif "distance_m" in update_data or "hits" in update_data or "shots" in update_data:
+            # Jeśli usuwamy distance_m lub hits, wyzeruj accuracy
+            if final_distance_m is None or final_hits is None:
                 update_data["accuracy_percent"] = None
     
     # Aktualizacja amunicji jeśli zmienia się liczba strzałów lub ammo_id (po walidacji)
@@ -177,9 +230,10 @@ async def update_session(
         
         if old_ammo_id != new_ammo_id or old_shots != new_shots:
             if old_ammo_id == new_ammo_id:
-                # Ta sama amunicja, tylko zmiana liczby strzałów
+                # Ta sama amunicja, zmiana liczby strzałów
                 old_ammo = await SessionService._get_ammo(db, old_ammo_id, user)
                 if old_ammo and old_ammo.units_in_package is not None:
+                    # Przywróć stare strzały i odejmij nowe
                     old_ammo.units_in_package += old_shots
                     old_ammo.units_in_package -= new_shots
                     db.add(old_ammo)
@@ -188,14 +242,19 @@ async def update_session(
                 old_ammo = await SessionService._get_ammo(db, old_ammo_id, user)
                 new_ammo = await SessionService._get_ammo(db, new_ammo_id, user)
                 if old_ammo and old_ammo.units_in_package is not None:
+                    # Przywróć stare strzały do starej amunicji
                     old_ammo.units_in_package += old_shots
                     db.add(old_ammo)
                 if new_ammo and new_ammo.units_in_package is not None:
+                    # Odejmij nowe strzały z nowej amunicji
                     new_ammo.units_in_package -= new_shots
                     db.add(new_ammo)
     
+    # Aktualizuj tylko pola, które są w update_data (nie ustawiaj None jeśli nie było w update_data)
     for key, value in update_data.items():
-        setattr(ss, key, value)
+        if value is not None or key in ["notes", "cost", "distance_m", "hits", "accuracy_percent"]:
+            # Dla opcjonalnych pól, None jest dozwolone
+            setattr(ss, key, value)
 
     db.add(ss)
     await asyncio.to_thread(db.commit)
@@ -230,8 +289,9 @@ async def delete_session(
     if user.role != UserRole.admin:
         if ss.user_id != user.user_id:
             raise HTTPException(status_code=404, detail="Session not found")
-        if user.is_guest and ss.expires_at and ss.expires_at <= datetime.utcnow():
-            raise HTTPException(status_code=404, detail="Session not found")
+        if user.is_guest:
+            if ss.expires_at and ss.expires_at <= datetime.utcnow():
+                raise HTTPException(status_code=404, detail="Session not found")
 
     # Przywróć amunicję
     from models import Ammo

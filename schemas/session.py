@@ -38,7 +38,3 @@ class MonthlySummary(BaseModel):
     total_cost: float
     total_shots: int
 
-
-class SessionsListResponse(BaseModel):
-    sessions: PaginatedResponse[ShootingSessionRead]
-
