@@ -140,7 +140,7 @@ async def update_session(
             if ss.expires_at and ss.expires_at <= datetime.utcnow():
                 raise HTTPException(status_code=404, detail="Session not found")
 
-    update_data = session_data.model_dump(exclude_unset=True, exclude_none=False)
+    update_data = dict(session_data.model_dump(exclude_unset=True, exclude_none=False))
     
     # Parsuj datę jeśli jest podana
     if "date" in update_data and update_data["date"] is not None:
@@ -152,10 +152,10 @@ async def update_session(
     
     # Walidacja przed aktualizacją amunicji
     if "gun_id" in update_data or "ammo_id" in update_data or "shots" in update_data or "hits" in update_data:
-        gun_id = update_data.get("gun_id", ss.gun_id)
-        ammo_id = update_data.get("ammo_id", ss.ammo_id)
-        shots = update_data.get("shots", ss.shots)
-        hits = update_data.get("hits", ss.hits)
+        gun_id = update_data["gun_id"] if "gun_id" in update_data else ss.gun_id
+        ammo_id = update_data["ammo_id"] if "ammo_id" in update_data else ss.ammo_id
+        shots = update_data["shots"] if "shots" in update_data else ss.shots
+        hits = update_data["hits"] if "hits" in update_data else ss.hits
         
         from services.session_service import SessionValidationService
         from models import Gun, Ammo
@@ -212,9 +212,9 @@ async def update_session(
         
         # Przelicz accuracy jeśli mamy wszystkie potrzebne dane
         # Użyj wartości z update_data jeśli są, w przeciwnym razie użyj wartości z ss
-        final_distance_m = update_data.get("distance_m") if "distance_m" in update_data else ss.distance_m
-        final_hits = update_data.get("hits") if "hits" in update_data else ss.hits
-        final_shots = update_data.get("shots") if "shots" in update_data else ss.shots
+        final_distance_m = update_data["distance_m"] if "distance_m" in update_data else ss.distance_m
+        final_hits = update_data["hits"] if "hits" in update_data else ss.hits
+        final_shots = update_data["shots"] if "shots" in update_data else ss.shots
         
         if final_distance_m is not None and final_hits is not None and final_shots > 0:
             from services.session_service import SessionCalculationService
@@ -227,9 +227,9 @@ async def update_session(
     # Aktualizacja amunicji jeśli zmienia się liczba strzałów lub ammo_id (po walidacji)
     if "shots" in update_data or "ammo_id" in update_data:
         old_ammo_id = ss.ammo_id
-        new_ammo_id = update_data.get("ammo_id", ss.ammo_id)
+        new_ammo_id = update_data["ammo_id"] if "ammo_id" in update_data else ss.ammo_id
         old_shots = ss.shots
-        new_shots = update_data.get("shots", ss.shots)
+        new_shots = update_data["shots"] if "shots" in update_data else ss.shots
         
         if old_ammo_id != new_ammo_id or old_shots != new_shots:
             if old_ammo_id == new_ammo_id:
@@ -307,16 +307,8 @@ async def delete_session(
             ammo.units_in_package += ss.shots
         db.add(ammo)
 
-    def _delete_session():
-        db.delete(ss)
-        db.commit()
-    
-    try:
-        await asyncio.to_thread(_delete_session)
-    except Exception as e:
-        await asyncio.to_thread(db.rollback)
-        raise HTTPException(status_code=500, detail=f"Błąd podczas usuwania sesji: {str(e)}")
-    
+    await asyncio.to_thread(db.delete, ss)
+    await asyncio.to_thread(db.commit)
     return {"message": "Session deleted"}
 
 
