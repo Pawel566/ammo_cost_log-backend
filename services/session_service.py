@@ -300,6 +300,202 @@ class SessionService:
         items = summary[offset:offset + limit]
         return {"total": total, "items": items}
 
+    @staticmethod
+    async def update_shooting_session(
+        session: Session,
+        session_id: str,
+        user: UserContext,
+        data: Any
+    ) -> Dict[str, Any]:
+        ss = await asyncio.to_thread(session.get, ShootingSession, session_id)
+        if not ss:
+            raise HTTPException(status_code=404, detail="Session not found")
+        
+        if user.role != UserRole.admin:
+            if ss.user_id != user.user_id:
+                raise HTTPException(status_code=404, detail="Session not found")
+            if user.is_guest:
+                if ss.expires_at and ss.expires_at <= datetime.utcnow():
+                    raise HTTPException(status_code=404, detail="Session not found")
+
+        update_dict = data.model_dump(exclude_unset=True, exclude_none=True)
+        
+        if not update_dict:
+            return {"session": ss, "remaining_ammo": None}
+
+        old_shots = ss.shots
+        old_ammo_id = ss.ammo_id
+        old_gun_id = ss.gun_id
+
+        if "date" in update_dict:
+            if isinstance(update_dict["date"], str):
+                update_dict["date"] = SessionCalculationService.parse_date(update_dict["date"])
+            elif update_dict["date"] is None:
+                del update_dict["date"]
+
+        if "gun_id" in update_dict:
+            if update_dict["gun_id"] == "":
+                del update_dict["gun_id"]
+            elif update_dict["gun_id"] is None:
+                del update_dict["gun_id"]
+        
+        if "ammo_id" in update_dict:
+            if update_dict["ammo_id"] == "":
+                del update_dict["ammo_id"]
+            elif update_dict["ammo_id"] is None:
+                del update_dict["ammo_id"]
+
+        if "notes" in update_dict:
+            if update_dict["notes"] == "":
+                update_dict["notes"] = None
+            elif update_dict["notes"] is None:
+                del update_dict["notes"]
+
+        new_gun_id = update_dict.get("gun_id", old_gun_id)
+        new_ammo_id = update_dict.get("ammo_id", old_ammo_id)
+        new_shots = update_dict.get("shots", old_shots)
+        new_hits = update_dict.get("hits", ss.hits)
+
+        if "gun_id" in update_dict or "ammo_id" in update_dict or "shots" in update_dict or "hits" in update_dict:
+            gun = await SessionService._get_gun(session, new_gun_id, user)
+            ammo = await SessionService._get_ammo(session, new_ammo_id, user)
+            
+            if not gun:
+                raise HTTPException(status_code=404, detail="Broń nie została znaleziona")
+            if not ammo:
+                raise HTTPException(status_code=404, detail="Amunicja nie została znaleziona")
+            if gun.user_id != ammo.user_id:
+                raise HTTPException(status_code=400, detail="Wybrana broń i amunicja należą do różnych użytkowników")
+            
+            if new_hits is not None and (new_hits < 0 or new_hits > new_shots):
+                raise HTTPException(
+                    status_code=400,
+                    detail="Liczba trafień musi być między 0 a całkowitą liczbą strzałów"
+                )
+
+            shots_diff = new_shots - old_shots
+            ammo_changed = old_ammo_id != new_ammo_id
+            old_ammo = None
+
+            if shots_diff > 0 or ammo_changed:
+                if not SessionValidationService.validate_ammo_gun_compatibility(ammo, gun):
+                    raise HTTPException(
+                        status_code=400,
+                        detail="Wybrana amunicja nie pasuje do kalibru broni"
+                    )
+                
+                if ammo_changed:
+                    old_ammo = await SessionService._get_ammo(session, old_ammo_id, user)
+                    if old_ammo and old_ammo.units_in_package is not None:
+                        old_ammo.units_in_package += old_shots
+                        session.add(old_ammo)
+                
+                if ammo.units_in_package is None or ammo.units_in_package < new_shots:
+                    if old_ammo and old_ammo.units_in_package is not None:
+                        old_ammo.units_in_package -= old_shots
+                        session.add(old_ammo)
+                    raise HTTPException(
+                        status_code=400,
+                        detail=f"Za mało amunicji. Pozostało tylko {ammo.units_in_package or 0} sztuk."
+                    )
+                
+                if ammo.units_in_package is not None:
+                    if ammo_changed:
+                        ammo.units_in_package -= new_shots
+                    else:
+                        ammo.units_in_package -= shots_diff
+                    session.add(ammo)
+
+            if shots_diff < 0:
+                if ammo.units_in_package is not None:
+                    ammo.units_in_package += abs(shots_diff)
+                    session.add(ammo)
+
+        if "distance_m" in update_dict:
+            if update_dict["distance_m"] is None:
+                del update_dict["distance_m"]
+            elif isinstance(update_dict["distance_m"], str):
+                if update_dict["distance_m"] == "":
+                    del update_dict["distance_m"]
+                else:
+                    try:
+                        update_dict["distance_m"] = float(update_dict["distance_m"])
+                    except (ValueError, TypeError):
+                        del update_dict["distance_m"]
+
+        if "hits" in update_dict:
+            if update_dict["hits"] is None:
+                del update_dict["hits"]
+            elif isinstance(update_dict["hits"], str):
+                if update_dict["hits"] == "":
+                    del update_dict["hits"]
+                else:
+                    try:
+                        update_dict["hits"] = int(update_dict["hits"])
+                    except (ValueError, TypeError):
+                        del update_dict["hits"]
+
+        if "shots" in update_dict:
+            if update_dict["shots"] is None:
+                del update_dict["shots"]
+            elif isinstance(update_dict["shots"], str):
+                if update_dict["shots"] == "":
+                    del update_dict["shots"]
+                else:
+                    try:
+                        update_dict["shots"] = int(update_dict["shots"])
+                    except (ValueError, TypeError):
+                        del update_dict["shots"]
+
+        if "cost" in update_dict:
+            if update_dict["cost"] is None:
+                del update_dict["cost"]
+            elif isinstance(update_dict["cost"], str):
+                if update_dict["cost"] == "":
+                    del update_dict["cost"]
+                else:
+                    try:
+                        update_dict["cost"] = float(update_dict["cost"])
+                    except (ValueError, TypeError):
+                        del update_dict["cost"]
+
+        final_distance_m = update_dict.get("distance_m", ss.distance_m)
+        final_hits = update_dict.get("hits", ss.hits)
+        final_shots = update_dict.get("shots", ss.shots)
+
+        if final_distance_m is not None and final_hits is not None and final_shots and final_shots > 0:
+            update_dict["accuracy_percent"] = SessionCalculationService.calculate_accuracy(final_hits, final_shots)
+        elif "distance_m" in update_dict or "hits" in update_dict:
+            if final_distance_m is None or final_hits is None:
+                update_dict["accuracy_percent"] = None
+
+        if "cost" not in update_dict and ("shots" in update_dict or "ammo_id" in update_dict):
+            if "ammo_id" in update_dict:
+                ammo = await SessionService._get_ammo(session, update_dict["ammo_id"], user)
+            else:
+                ammo = await SessionService._get_ammo(session, new_ammo_id, user)
+            if ammo:
+                final_shots = update_dict.get("shots", ss.shots)
+                update_dict["cost"] = SessionCalculationService.calculate_cost(ammo.price_per_unit, final_shots)
+
+        for key, value in update_dict.items():
+            setattr(ss, key, value)
+
+        session.add(ss)
+        await asyncio.to_thread(session.commit)
+        await asyncio.to_thread(session.refresh, ss)
+
+        remaining_ammo = None
+        if new_ammo_id != old_ammo_id or new_shots != old_shots:
+            final_ammo = await SessionService._get_ammo(session, new_ammo_id, user)
+            if final_ammo:
+                remaining_ammo = final_ammo.units_in_package
+
+        return {
+            "session": ss,
+            "remaining_ammo": remaining_ammo
+        }
+
 
 
 

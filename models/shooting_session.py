@@ -1,12 +1,11 @@
-from sqlmodel import SQLModel, Field, Relationship
+from sqlmodel import SQLModel, Field, Relationship, Column
+from sqlalchemy import ForeignKey
 from typing import Optional
 from uuid import uuid4
 from datetime import date as Date, datetime
 
 
 class ShootingSessionBase(SQLModel):
-    gun_id: str = Field(foreign_key="guns.id")
-    ammo_id: str = Field(foreign_key="ammo.id")
     date: Date
     shots: int = Field(gt=0)
     cost: Optional[float] = Field(default=None, ge=0)
@@ -18,9 +17,11 @@ class ShootingSessionBase(SQLModel):
 
 
 class ShootingSession(ShootingSessionBase, table=True):
-    __tablename__ = "sessions"
+    __tablename__ = "shooting_sessions"
     id: str = Field(default_factory=lambda: str(uuid4()), primary_key=True)
+    gun_id: str = Field(sa_column=Column(ForeignKey("guns.id", ondelete="CASCADE"), nullable=False))
+    ammo_id: str = Field(sa_column=Column(ForeignKey("ammo.id", ondelete="CASCADE"), nullable=False))
     user_id: str = Field(index=True, max_length=64)
     expires_at: Optional[datetime] = Field(default=None, nullable=True)
-    gun: Optional["Gun"] = Relationship(back_populates="sessions")
-    ammo: Optional["Ammo"] = Relationship(back_populates="sessions")
+    gun: Optional["Gun"] = Relationship(back_populates="sessions", passive_deletes=True)
+    ammo: Optional["Ammo"] = Relationship(back_populates="sessions", passive_deletes=True)

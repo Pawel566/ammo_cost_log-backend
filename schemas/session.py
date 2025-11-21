@@ -2,6 +2,7 @@ from datetime import date, datetime
 from typing import Optional
 from pydantic import BaseModel, Field, ConfigDict
 from schemas.pagination import PaginatedResponse
+from sqlmodel import SQLModel
 
 
 class ShootingSessionCreate(BaseModel):
@@ -13,6 +14,17 @@ class ShootingSessionCreate(BaseModel):
     notes: Optional[str] = None
     distance_m: Optional[int] = Field(default=None, gt=0)
     hits: Optional[int] = Field(default=None, ge=0)
+
+
+class ShootingSessionUpdate(SQLModel):
+    date: Optional[date] = None
+    gun_id: Optional[str] = None
+    ammo_id: Optional[str] = None
+    shots: Optional[int] = Field(default=None, gt=0)
+    hits: Optional[int] = Field(default=None, ge=0)
+    distance_m: Optional[float] = Field(default=None, gt=0)
+    cost: Optional[float] = Field(default=None, ge=0)
+    notes: Optional[str] = None
 
 
 class ShootingSessionRead(BaseModel):

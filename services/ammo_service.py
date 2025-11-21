@@ -87,9 +87,19 @@ class AmmoService:
     @staticmethod
     async def delete_ammo(session: Session, ammo_id: str, user: UserContext) -> dict:
         ammo = await AmmoService._get_single_ammo(session, ammo_id, user)
-        await asyncio.to_thread(session.delete, ammo)
-        await asyncio.to_thread(session.commit)
-        return {"message": f"Amunicja o ID {ammo_id} została usunięta"}
+        try:
+            await asyncio.to_thread(session.delete, ammo)
+            await asyncio.to_thread(session.commit)
+            return {"message": f"Amunicja o ID {ammo_id} została usunięta"}
+        except Exception as e:
+            await asyncio.to_thread(session.rollback)
+            error_msg = str(e).lower()
+            if "foreign key" in error_msg or "integrity" in error_msg:
+                raise HTTPException(
+                    status_code=400,
+                    detail="Nie można usunąć amunicji, ponieważ jest powiązana z sesjami strzeleckimi. Najpierw usuń powiązane sesje."
+                )
+            raise HTTPException(status_code=500, detail=f"Błąd podczas usuwania amunicji: {str(e)}")
 
     @staticmethod
     async def add_ammo_quantity(session: Session, ammo_id: str, amount: int, user: UserContext) -> Ammo:

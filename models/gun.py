@@ -23,7 +23,7 @@ class Gun(GunBase, table=True):
     id: str = Field(default_factory=lambda: str(uuid4()), primary_key=True)
     user_id: str = Field(index=True, max_length=64)
     expires_at: Optional[datetime] = Field(default=None, nullable=True)
-    sessions: List["ShootingSession"] = Relationship(back_populates="gun")
-    attachments: List["Attachment"] = Relationship(back_populates="gun")
-    maintenance: List["Maintenance"] = Relationship(back_populates="gun")
+    sessions: List["ShootingSession"] = Relationship(back_populates="gun", passive_deletes=True)
+    attachments: List["Attachment"] = Relationship(back_populates="gun", passive_deletes=True)
+    maintenance: List["Maintenance"] = Relationship(back_populates="gun", passive_deletes=True)
 

@@ -18,13 +18,18 @@ app = FastAPI(
     description="API do zarządzania kosztami amunicji i sesjami strzeleckimi"
 )
 
+allowed_origins = [
+    "https://ammo-cost-log.vercel.app",
+    "http://localhost:5173"
+]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=allowed_origins,
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-    expose_headers=["X-Guest-Id", "X-Guest-Id-Expires-At"],
+    allow_methods=["GET", "POST", "PATCH", "DELETE", "OPTIONS"],
+    allow_headers=["Authorization", "Content-Type", "X-Guest-Id"],
+    expose_headers=["X-Guest-Id"]
 )
 
 @app.on_event("startup")

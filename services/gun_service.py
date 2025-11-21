@@ -89,9 +89,19 @@ class GunService:
     @staticmethod
     async def delete_gun(session: Session, gun_id: str, user: UserContext) -> dict:
         gun = await GunService._get_single_gun(session, gun_id, user)
-        await asyncio.to_thread(session.delete, gun)
-        await asyncio.to_thread(session.commit)
-        return {"message": f"Broń o ID {gun_id} została usunięta"}
+        try:
+            await asyncio.to_thread(session.delete, gun)
+            await asyncio.to_thread(session.commit)
+            return {"message": f"Broń o ID {gun_id} została usunięta"}
+        except Exception as e:
+            await asyncio.to_thread(session.rollback)
+            error_msg = str(e).lower()
+            if "foreign key" in error_msg or "integrity" in error_msg:
+                raise HTTPException(
+                    status_code=400,
+                    detail="Nie można usunąć broni, ponieważ jest powiązana z sesjami strzeleckimi, konserwacją lub wyposażeniem. Najpierw usuń powiązane rekordy."
+                )
+            raise HTTPException(status_code=500, detail=f"Błąd podczas usuwania broni: {str(e)}")
 
 
 
