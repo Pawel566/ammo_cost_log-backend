@@ -159,8 +159,8 @@ async def delete_session(
         ammo.units_in_package += ss.shots
         db.add(ammo)
 
-    await asyncio.to_thread(db.delete, ss)
-    await asyncio.to_thread(db.commit)
+    db.delete(ss)
+    db.commit()
     return {"message": "Session deleted"}
 
 
