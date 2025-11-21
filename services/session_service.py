@@ -5,7 +5,6 @@ from collections import defaultdict
 from sqlalchemy import or_, func, cast, String, not_
 from fastapi import HTTPException
 from models import ShootingSession, Ammo, Gun
-import asyncio
 import logging
 from services.user_context import UserContext, UserRole
 from services.maintenance_service import MaintenanceService
@@ -126,22 +125,22 @@ class SessionService:
         return query.where(or_(*conditions))
 
     @staticmethod
-    async def _get_gun(session: Session, gun_id: str, user: UserContext) -> Optional[Gun]:
+    def _get_gun(session: Session, gun_id: str, user: UserContext) -> Optional[Gun]:
         query = select(Gun).where(Gun.id == gun_id)
         if user.role != UserRole.admin:
             query = query.where(Gun.user_id == user.user_id)
             if user.is_guest:
                 query = query.where(or_(Gun.expires_at.is_(None), Gun.expires_at > datetime.utcnow()))
-        return await asyncio.to_thread(lambda: session.exec(query).first())
+        return session.exec(query).first()
 
     @staticmethod
-    async def _get_ammo(session: Session, ammo_id: str, user: UserContext) -> Optional[Ammo]:
+    def _get_ammo(session: Session, ammo_id: str, user: UserContext) -> Optional[Ammo]:
         query = select(Ammo).where(Ammo.id == ammo_id)
         if user.role != UserRole.admin:
             query = query.where(Ammo.user_id == user.user_id)
             if user.is_guest:
                 query = query.where(or_(Ammo.expires_at.is_(None), Ammo.expires_at > datetime.utcnow()))
-        return await asyncio.to_thread(lambda: session.exec(query).first())
+        return session.exec(query).first()
 
     @staticmethod
     async def get_all_sessions(
@@ -176,12 +175,12 @@ class SessionService:
         query = SessionService._apply_session_search(base_query, ShootingSession, search)
         count_query = query.with_only_columns(func.count(ShootingSession.id)).order_by(None)
 
-        def _run():
-            total = session.exec(count_query).one()
-            items = session.exec(query.order_by(ShootingSession.date.desc()).offset(offset).limit(limit)).all()
-            return total, items
-
-        total, items = await asyncio.to_thread(_run)
+        total = session.exec(count_query).one()
+        items = session.exec(
+            query.order_by(ShootingSession.date.desc())
+                 .offset(offset)
+                 .limit(limit)
+        ).all()
 
         return {
             "total": total,
@@ -205,8 +204,8 @@ class SessionService:
         - Zwraca strukturę z informacją o sesji i pozostałej liczbie sztuk
         """
         parsed_date = SessionCalculationService.parse_date(data.date)
-        gun = await SessionService._get_gun(session, data.gun_id, user)
-        ammo = await SessionService._get_ammo(session, data.ammo_id, user)
+        gun = SessionService._get_gun(session, data.gun_id, user)
+        ammo = SessionService._get_ammo(session, data.ammo_id, user)
         
         # Walidacja zgodności broni i amunicji
         hits = data.hits if data.hits is not None else None
@@ -252,8 +251,8 @@ class SessionService:
         session.add(new_session)
         session.add(ammo)
         session.add(gun)
-        await asyncio.to_thread(session.commit)
-        await asyncio.to_thread(session.refresh, new_session)
+        session.commit()
+        session.refresh(new_session)
         await MaintenanceService.update_last_maintenance_rounds(session, user, data.gun_id)
         
         # Zwracanie struktury z informacją o sesji i pozostałej liczbie sztuk
@@ -267,10 +266,7 @@ class SessionService:
     async def get_monthly_summary(session: Session, user: UserContext, limit: int, offset: int, search: Optional[str]) -> Dict[str, Any]:
         query = SessionService._query_for_user(ShootingSession, user)
 
-        def _fetch_sessions():
-            return session.exec(query).all()
-
-        sessions = await asyncio.to_thread(_fetch_sessions)
+        sessions = session.exec(query).all()
         if not sessions:
             return {"total": 0, "items": []}
 
@@ -307,7 +303,7 @@ class SessionService:
         user: UserContext,
         data: Any
     ) -> Dict[str, Any]:
-        ss = await asyncio.to_thread(session.get, ShootingSession, session_id)
+        ss = session.get(ShootingSession, session_id)
         if not ss:
             raise HTTPException(status_code=404, detail="Session not found")
         
@@ -357,8 +353,8 @@ class SessionService:
         new_hits = update_dict.get("hits", ss.hits)
 
         if "gun_id" in update_dict or "ammo_id" in update_dict or "shots" in update_dict or "hits" in update_dict:
-            gun = await SessionService._get_gun(session, new_gun_id, user)
-            ammo = await SessionService._get_ammo(session, new_ammo_id, user)
+            gun = SessionService._get_gun(session, new_gun_id, user)
+            ammo = SessionService._get_ammo(session, new_ammo_id, user)
             
             if not gun:
                 raise HTTPException(status_code=404, detail="Broń nie została znaleziona")
@@ -385,7 +381,7 @@ class SessionService:
                     )
                 
                 if ammo_changed:
-                    old_ammo = await SessionService._get_ammo(session, old_ammo_id, user)
+                    old_ammo = SessionService._get_ammo(session, old_ammo_id, user)
                     if old_ammo and old_ammo.units_in_package is not None:
                         old_ammo.units_in_package += old_shots
                         session.add(old_ammo)
@@ -471,9 +467,9 @@ class SessionService:
 
         if "cost" not in update_dict and ("shots" in update_dict or "ammo_id" in update_dict):
             if "ammo_id" in update_dict:
-                ammo = await SessionService._get_ammo(session, update_dict["ammo_id"], user)
+                ammo = SessionService._get_ammo(session, update_dict["ammo_id"], user)
             else:
-                ammo = await SessionService._get_ammo(session, new_ammo_id, user)
+                ammo = SessionService._get_ammo(session, new_ammo_id, user)
             if ammo:
                 final_shots = update_dict.get("shots", ss.shots)
                 update_dict["cost"] = SessionCalculationService.calculate_cost(ammo.price_per_unit, final_shots)
@@ -482,12 +478,12 @@ class SessionService:
             setattr(ss, key, value)
 
         session.add(ss)
-        await asyncio.to_thread(session.commit)
-        await asyncio.to_thread(session.refresh, ss)
+        session.commit()
+        session.refresh(ss)
 
         remaining_ammo = None
         if new_ammo_id != old_ammo_id or new_shots != old_shots:
-            final_ammo = await SessionService._get_ammo(session, new_ammo_id, user)
+            final_ammo = SessionService._get_ammo(session, new_ammo_id, user)
             if final_ammo:
                 remaining_ammo = final_ammo.units_in_package
 
