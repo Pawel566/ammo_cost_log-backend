@@ -143,7 +143,7 @@ async def delete_session(
     db: Session = Depends(get_session),
     user: UserContext = Depends(role_required([UserRole.guest, UserRole.user, UserRole.admin]))
 ):
-    ss = await asyncio.to_thread(db.get, ShootingSession, session_id)
+    ss = db.get(ShootingSession, session_id)
     if not ss:
         raise HTTPException(status_code=404, detail="Session not found")
     
