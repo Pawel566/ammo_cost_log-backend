@@ -41,7 +41,7 @@ python3 -m uvicorn main:app --reload --host 0.0.0.0 --port 8000
 ### Sesje
 - `POST /api/sessions/cost` - dodaj sesję kosztową
 - `POST /api/sessions/accuracy` - dodaj sesję celnościową
-- `GET /api/sessions/` - lista sesji kosztowych i celnościowych (obsługuje `limit`, `offset`, `search`)
+- `GET /api/sessions/` - lista sesji kosztowych i celnościowych (obsługuje `limit`, `offset`, `search`)s
 - `GET /api/sessions/summary` - statystyki miesięczne (obsługuje `limit`, `offset`, `search`)
 - `GET /api/shooting-sessions/` - lista sesji strzeleckich
 - `POST /api/shooting-sessions/` - dodaj sesję strzelecką
