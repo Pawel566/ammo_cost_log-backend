@@ -75,6 +75,22 @@ async def get_all_sessions(
         for s in sessions
     ]
 
+@router.get("/summary", response_model=MonthlySummaryResponse)
+async def get_monthly_summary(
+    db: Session = Depends(get_session),
+    user: UserContext = Depends(role_required([UserRole.guest, UserRole.user, UserRole.admin])),
+    limit: int = Query(12, ge=1, le=120),
+    offset: int = Query(0, ge=0),
+    search: Optional[str] = Query(default=None, min_length=1)
+):
+    result = await SessionService.get_monthly_summary(db, user, limit, offset, search)
+    return {
+        "total": result["total"],
+        "items": result["items"],
+        "limit": limit,
+        "offset": offset
+    }
+
 
 @router.get("/{session_id}", response_model=ShootingSessionRead)
 async def get_session(
@@ -164,19 +180,5 @@ async def delete_session(
     return {"message": "Session deleted"}
 
 
-@router.get("/summary", response_model=MonthlySummaryResponse)
-async def get_monthly_summary(
-    db: Session = Depends(get_session),
-    user: UserContext = Depends(role_required([UserRole.guest, UserRole.user, UserRole.admin])),
-    limit: int = Query(12, ge=1, le=120),
-    offset: int = Query(0, ge=0),
-    search: Optional[str] = Query(default=None, min_length=1)
-):
-    result = await SessionService.get_monthly_summary(db, user, limit, offset, search)
-    return {
-        "total": result["total"],
-        "items": result["items"],
-        "limit": limit,
-        "offset": offset
-    }
+
 
