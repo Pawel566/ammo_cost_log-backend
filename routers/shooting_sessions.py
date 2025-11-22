@@ -16,7 +16,7 @@ router = APIRouter(prefix="/shooting-sessions", tags=["Shooting Sessions"])
 class MonthlySummaryResponse(PaginatedResponse[MonthlySummary]):
     pass
 
-
+#
 @router.post("/", response_model=Dict[str, Any])
 async def create_shooting_session(
     session_data: ShootingSessionCreate,
