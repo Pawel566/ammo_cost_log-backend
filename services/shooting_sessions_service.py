@@ -13,34 +13,34 @@ logger = logging.getLogger(__name__)
 
 
 class SessionValidationService:
-    # @staticmethod
-    # def validate_ammo_gun_compatibility(ammo: Ammo, gun: Gun) -> bool:
-    #     if not ammo.caliber or not gun.caliber:
-    #         return True
+    @staticmethod
+    def validate_ammo_gun_compatibility(ammo: Ammo, gun: Gun) -> bool:
+        if not ammo.caliber or not gun.caliber:
+            return True
         
-    #     ammo_caliber = ammo.caliber.lower().replace(" ", "").replace(".", "")
-    #     gun_caliber = gun.caliber.lower().replace(" ", "").replace(".", "")
+        ammo_caliber = ammo.caliber.lower().replace(" ", "").replace(".", "")
+        gun_caliber = gun.caliber.lower().replace(" ", "").replace(".", "")
         
-    #     caliber_mappings = {
-    #         "9mm": ["9x19", "9mm", "9mmparabellum", "9mmpara"],
-    #         "9x19": ["9mm", "9x19", "9mmparabellum", "9mmpara"],
-    #         "45acp": ["45acp", "45apc", "45auto", "045", "45APC", "45 APC"],
-    #         "45apc": ["45acp", "45apc", "45auto", "045"],
-    #         "045": ["45acp", "45apc", "45auto", "045"],
-    #         "556": ["556", "556nato", "223", "223rem"],
-    #         "223": ["556", "556nato", "223", "223rem"],
-    #         "762": ["762", "762nato", "762x51", "308", "308win"],
-    #         "308": ["762", "762nato", "762x51", "308", "308win"]
-    #     }
+        caliber_mappings = {
+            "9mm": ["9x19", "9mm", "9mmparabellum", "9mmpara"],
+            "9x19": ["9mm", "9x19", "9mmparabellum", "9mmpara"],
+            "45acp": ["45acp", "45apc", "45auto", "045", "45APC", "45 APC"],
+            "45apc": ["45acp", "45apc", "45auto", "045"],
+            "045": ["45acp", "45apc", "45auto", "045"],
+            "556": ["556", "556nato", "223", "223rem"],
+            "223": ["556", "556nato", "223", "223rem"],
+            "762": ["762", "762nato", "762x51", "308", "308win"],
+            "308": ["762", "762nato", "762x51", "308", "308win"]
+        }
         
-    #     if gun_caliber in ammo_caliber or ammo_caliber in gun_caliber:
-    #         return True
+        if gun_caliber in ammo_caliber or ammo_caliber in gun_caliber:
+            return True
         
-    #     for base_caliber, variants in caliber_mappings.items():
-    #         if gun_caliber in variants and ammo_caliber in variants:
-    #             return True
+        for base_caliber, variants in caliber_mappings.items():
+            if gun_caliber in variants and ammo_caliber in variants:
+                return True
         
-    #     return False
+        return False
 
     @staticmethod
     def validate_session_data(gun: Gun, ammo: Ammo, shots: int, hits: Optional[int] = None) -> None:
