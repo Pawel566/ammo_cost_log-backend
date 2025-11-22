@@ -1,6 +1,11 @@
 from .gun import GunCreate, GunRead
 from .ammo import AmmoCreate, AmmoRead
 from .pagination import PaginatedResponse
+from .shooting_sessions import (
+    ShootingSessionCreate,
+    ShootingSessionRead,
+    MonthlySummary
+)
 
 __all__ = [
     "GunCreate",
@@ -12,4 +17,3 @@ __all__ = [
     "MonthlySummary",
     "PaginatedResponse",
 ]
-
