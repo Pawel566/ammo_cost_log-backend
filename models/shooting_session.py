@@ -1,7 +1,7 @@
 from sqlmodel import SQLModel, Field, Relationship, Column
 from sqlalchemy import ForeignKey
 from typing import Optional
-from uuid import uuid4
+from uuid import UUID, uuid4
 from datetime import date as Date, datetime
 
 
