@@ -30,7 +30,7 @@ class UserSettingsService:
         return settings
 
     @staticmethod
-    async def update_settings(session: Session, user: UserContext, data: Dict[str, Any]) -> UserSettings:
+    async def delete_shooting_session(db: Session, session_id: str, user: UserContext):
         settings = await UserSettingsService.get_settings(session, user)
         if "ai_mode" in data:
             settings.ai_mode = data["ai_mode"]
