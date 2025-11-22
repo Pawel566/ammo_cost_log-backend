@@ -18,7 +18,7 @@ class ShootingSessionBase(SQLModel):
 
 class ShootingSession(ShootingSessionBase, table=True):
     __tablename__ = "shooting_sessions"
-    id: str = Field(default_factory=lambda: str(uuid4()), primary_key=True)
+    id: UUID = Field(default_factory=uuid4, primary_key=True)
     gun_id: str = Field(sa_column=Column(ForeignKey("guns.id", ondelete="CASCADE"), nullable=False))
     ammo_id: str = Field(sa_column=Column(ForeignKey("ammo.id", ondelete="CASCADE"), nullable=False))
     user_id: str = Field(index=True, max_length=64)

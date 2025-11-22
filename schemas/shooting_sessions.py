@@ -50,3 +50,4 @@ class MonthlySummary(BaseModel):
 
 
 
+
