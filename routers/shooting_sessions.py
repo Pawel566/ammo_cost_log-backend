@@ -1,7 +1,5 @@
 from fastapi import APIRouter, HTTPException, Depends, Query
-from sqlmodel import Session, select
-from sqlalchemy import or_
-import asyncio
+from sqlmodel import Session
 from models import ShootingSession
 from schemas.shooting_sessions import ShootingSessionRead, ShootingSessionCreate, ShootingSessionUpdate, MonthlySummary
 from schemas.pagination import PaginatedResponse
@@ -11,7 +9,6 @@ from services.user_context import UserContext, UserRole
 from services.shooting_sessions_service import ShootingSessionsService
 from datetime import datetime
 from typing import Optional, Dict, Any
-from uuid import UUID
 
 router = APIRouter(prefix="/shooting-sessions", tags=["Shooting Sessions"])
 
@@ -152,7 +149,7 @@ async def update_session(
     }
 
 
-@router.delete("/{session_id}")
+@router.delete("/{session_id}", response_model=Dict[str, str])
 async def delete_session(
     session_id: str,
     db: Session = Depends(get_session),
