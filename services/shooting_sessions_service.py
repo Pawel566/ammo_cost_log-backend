@@ -443,7 +443,7 @@ class ShootingSessionsService:
     @staticmethod
     async def delete_shooting_session(
         session: Session,
-        session_id: UUID,
+        session_id: str,
         user: UserContext
     ) -> Dict[str, str]:
         ss = session.get(ShootingSession, session_id)
