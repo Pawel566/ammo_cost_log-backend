@@ -441,30 +441,22 @@ class ShootingSessionsService:
         }
 
     @staticmethod
-    async def delete_shooting_session(
-        session: Session,
-        session_id: str,
-        user: UserContext
-    ) -> Dict[str, str]:
-        ss = session.get(ShootingSession, session_id)
-        if not ss:
+async def delete_shooting_session(db: Session, session_id: int, user: UserContext):
+    ss = db.get(ShootingSession, session_id)
+    if not ss:
+        raise HTTPException(status_code=404, detail="Session not found")
+
+    if user.is_guest:
+        if ss.expires_at and ss.expires_at <= datetime.utcnow():
             raise HTTPException(status_code=404, detail="Session not found")
-        
-        if user.role != UserRole.admin:
-            if ss.user_id != user.user_id:
-                raise HTTPException(status_code=404, detail="Session not found")
-            if user.is_guest:
-                if ss.expires_at and ss.expires_at <= datetime.utcnow():
-                    raise HTTPException(status_code=404, detail="Session not found")
 
-        ammo = ShootingSessionsService._get_ammo(session, ss.ammo_id, user)
-        if ammo and ammo.units_in_package is not None:
-            ammo.units_in_package += ss.shots
-            session.add(ammo)
+    ammo = ShootingSessionsService._get_ammo(db, ss.ammo_id, user)
+    if ammo and ammo.units_in_package is not None:
+        ammo.units_in_package += ss.shots
+        db.add(ammo)
 
-        session.delete(ss)
-        session.commit()
-        
-        return {"message": "Session deleted"}
+    db.delete(ss)
+    db.commit()
 
+    return {"message": "Session deleted"}
 
