@@ -48,3 +48,4 @@ class MonthlySummary(BaseModel):
     total_cost: float
     total_shots: int
 
+

@@ -175,3 +175,4 @@ async def test_get_monthly_summary(session: Session):
     assert result["items"][0]["total_shots"] == 25
     assert result["items"][0]["total_cost"] == 50.0
 
+

@@ -8,6 +8,7 @@ from models import ShootingSession, Ammo, Gun
 import logging
 from services.user_context import UserContext, UserRole
 from services.maintenance_service import MaintenanceService
+from uuid import UUID
 
 logger = logging.getLogger(__name__)
 
@@ -442,7 +443,7 @@ class ShootingSessionsService:
     @staticmethod
     async def delete_shooting_session(
         session: Session,
-        session_id: str,
+        session_id: UUID,
         user: UserContext
     ) -> Dict[str, str]:
         ss = session.get(ShootingSession, session_id)
@@ -465,4 +466,5 @@ class ShootingSessionsService:
         session.commit()
         
         return {"message": "Session deleted"}
+
 

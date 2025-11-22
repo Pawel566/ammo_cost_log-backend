@@ -11,6 +11,7 @@ from services.user_context import UserContext, UserRole
 from services.shooting_sessions_service import ShootingSessionsService
 from datetime import datetime
 from typing import Optional, Dict, Any
+from uuid import UUID
 
 router = APIRouter(prefix="/shooting-sessions", tags=["Shooting Sessions"])
 
@@ -153,7 +154,7 @@ async def update_session(
 
 @router.delete("/{session_id}")
 async def delete_session(
-    session_id: str,
+    session_id: UUID,
     db: Session = Depends(get_session),
     user: UserContext = Depends(role_required([UserRole.guest, UserRole.user, UserRole.admin]))
 ):
