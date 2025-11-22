@@ -3,12 +3,12 @@ from sqlmodel import Session, select
 from sqlalchemy import or_
 import asyncio
 from models import ShootingSession
-from schemas.session import ShootingSessionRead, ShootingSessionCreate, ShootingSessionUpdate, MonthlySummary
+from schemas.shooting_sessions import ShootingSessionRead, ShootingSessionCreate, ShootingSessionUpdate, MonthlySummary
 from schemas.pagination import PaginatedResponse
 from database import get_session
 from routers.auth import role_required
 from services.user_context import UserContext, UserRole
-from services.session_service import SessionService
+from services.shooting_sessions_service import ShootingSessionsService
 from datetime import datetime
 from typing import Optional, Dict, Any
 
@@ -25,7 +25,7 @@ async def create_shooting_session(
     db: Session = Depends(get_session),
     user: UserContext = Depends(role_required([UserRole.guest, UserRole.user, UserRole.admin]))
 ):
-    result = await SessionService.create_shooting_session(db, user, session_data)
+    result = await ShootingSessionsService.create_shooting_session(db, user, session_data)
     return {
         "id": result["session"].id,
         "gun_id": result["session"].gun_id,
@@ -52,7 +52,7 @@ async def get_all_sessions(
     date_from: Optional[str] = Query(default=None),
     date_to: Optional[str] = Query(default=None)
 ):
-    result = await SessionService.get_all_sessions(
+    result = await ShootingSessionsService.get_all_sessions(
         db, user, limit, offset, search, gun_id, date_from, date_to
     )
     sessions = result["items"]
@@ -83,7 +83,7 @@ async def get_monthly_summary(
     offset: int = Query(0, ge=0),
     search: Optional[str] = Query(default=None, min_length=1)
 ):
-    result = await SessionService.get_monthly_summary(db, user, limit, offset, search)
+    result = await ShootingSessionsService.get_monthly_summary(db, user, limit, offset, search)
     return {
         "total": result["total"],
         "items": result["items"],
@@ -126,31 +126,29 @@ async def get_session(
     )
 
 
-@router.patch("/{session_id}", response_model=ShootingSessionRead)
+@router.patch("/{session_id}", response_model=Dict[str, Any])
 async def update_session(
     session_id: str,
     session_data: ShootingSessionUpdate,
     db: Session = Depends(get_session),
     user: UserContext = Depends(role_required([UserRole.guest, UserRole.user, UserRole.admin]))
 ):
-    result = await SessionService.update_shooting_session(db, session_id, user, session_data)
+    result = await ShootingSessionsService.update_shooting_session(db, session_id, user, session_data)
     ss = result["session"]
     
-    return ShootingSessionRead(
-        id=ss.id,
-        gun_id=ss.gun_id,
-        ammo_id=ss.ammo_id,
-        date=ss.date.isoformat() if hasattr(ss.date, 'isoformat') else str(ss.date),
-        shots=ss.shots,
-        cost=ss.cost,
-        notes=ss.notes,
-        distance_m=ss.distance_m,
-        hits=ss.hits,
-        accuracy_percent=ss.accuracy_percent,
-        ai_comment=ss.ai_comment,
-        user_id=ss.user_id,
-        expires_at=ss.expires_at
-    )
+    return {
+        "id": ss.id,
+        "gun_id": ss.gun_id,
+        "ammo_id": ss.ammo_id,
+        "date": ss.date.isoformat() if hasattr(ss.date, 'isoformat') else str(ss.date),
+        "shots": ss.shots,
+        "cost": ss.cost,
+        "notes": ss.notes,
+        "distance_m": ss.distance_m,
+        "hits": ss.hits,
+        "accuracy_percent": ss.accuracy_percent,
+        "remaining_ammo": result.get("remaining_ammo")
+    }
 
 
 @router.delete("/{session_id}")
@@ -159,26 +157,5 @@ async def delete_session(
     db: Session = Depends(get_session),
     user: UserContext = Depends(role_required([UserRole.guest, UserRole.user, UserRole.admin]))
 ):
-    ss = db.get(ShootingSession, session_id)
-    if not ss:
-        raise HTTPException(status_code=404, detail="Session not found")
-    
-    if user.role != UserRole.admin:
-        if ss.user_id != user.user_id and (user.guest_session_id is None or ss.user_id != user.guest_session_id):
-            raise HTTPException(status_code=404, detail="Session not found")
-        if user.is_guest:
-            if ss.expires_at and ss.expires_at <= datetime.utcnow():
-                raise HTTPException(status_code=404, detail="Session not found")
-
-    ammo = await SessionService._get_ammo(db, ss.ammo_id, user)
-    if ammo and ammo.units_in_package is not None:
-        ammo.units_in_package += ss.shots
-        db.add(ammo)
-
-    db.delete(ss)
-    db.commit()
-    return {"message": "Session deleted"}
-
-
-
-
+    result = await ShootingSessionsService.delete_shooting_session(db, session_id, user)
+    return result

@@ -96,7 +96,7 @@ class SessionCalculationService:
             )
 
 
-class SessionService:
+class ShootingSessionsService:
     @staticmethod
     def _query_for_user(model, user: UserContext):
         query = select(model)
@@ -153,7 +153,7 @@ class SessionService:
         date_from: Optional[str] = None,
         date_to: Optional[str] = None
     ) -> Dict[str, Any]:
-        base_query = SessionService._query_for_user(ShootingSession, user)
+        base_query = ShootingSessionsService._query_for_user(ShootingSession, user)
         
         if gun_id:
             base_query = base_query.where(ShootingSession.gun_id == gun_id)
@@ -172,7 +172,7 @@ class SessionService:
             except ValueError:
                 pass
         
-        query = SessionService._apply_session_search(base_query, ShootingSession, search)
+        query = ShootingSessionsService._apply_session_search(base_query, ShootingSession, search)
         count_query = query.with_only_columns(func.count(ShootingSession.id)).order_by(None)
 
         total = session.exec(count_query).one()
@@ -193,35 +193,21 @@ class SessionService:
         user: UserContext,
         data: Any
     ) -> Dict[str, Any]:
-        """
-        Tworzy jedną sesję strzelecką z opcjonalnymi polami kosztu i celności.
-        
-        - Waliduje zgodność broni i amunicji
-        - Oblicza koszt na podstawie price_per_unit i shots
-        - Jeśli distance_m i hits są podane, oblicza celność i zapisuje ją w tej samej sesji
-        - W przeciwnym razie zostawia pola celności puste
-        - Aktualizuje magazyn amunicji
-        - Zwraca strukturę z informacją o sesji i pozostałej liczbie sztuk
-        """
         parsed_date = SessionCalculationService.parse_date(data.date)
-        gun = SessionService._get_gun(session, data.gun_id, user)
-        ammo = SessionService._get_ammo(session, data.ammo_id, user)
+        gun = ShootingSessionsService._get_gun(session, data.gun_id, user)
+        ammo = ShootingSessionsService._get_ammo(session, data.ammo_id, user)
         
-        # Walidacja zgodności broni i amunicji
         hits = data.hits if data.hits is not None else None
         SessionValidationService.validate_session_data(gun, ammo, data.shots, hits)
         
-        # Obliczanie kosztu na podstawie price_per_unit i shots
         cost = data.cost
         if cost is None:
             cost = SessionCalculationService.calculate_cost(ammo.price_per_unit, data.shots)
         
-        # Obliczanie celności tylko jeśli distance_m i hits są podane
         accuracy_percent = None
         if data.distance_m is not None and hits is not None and data.shots > 0:
             accuracy_percent = SessionCalculationService.calculate_accuracy(hits, data.shots)
         
-        # Aktualizacja magazynu amunicji
         ammo.units_in_package -= data.shots
         target_expiration = user.expires_at if user.is_guest else gun.expires_at
         
@@ -232,7 +218,6 @@ class SessionService:
             ammo.expires_at = None
             gun.expires_at = None
         
-        # Tworzenie sesji z opcjonalnymi polami celności
         new_session = ShootingSession(
             gun_id=data.gun_id,
             ammo_id=data.ammo_id,
@@ -255,16 +240,14 @@ class SessionService:
         session.refresh(new_session)
         await MaintenanceService.update_last_maintenance_rounds(session, user, data.gun_id)
         
-        # Zwracanie struktury z informacją o sesji i pozostałej liczbie sztuk
         return {
             "session": new_session,
             "remaining_ammo": ammo.units_in_package
         }
 
-
     @staticmethod
     async def get_monthly_summary(session: Session, user: UserContext, limit: int, offset: int, search: Optional[str]) -> Dict[str, Any]:
-        query = SessionService._query_for_user(ShootingSession, user)
+        query = ShootingSessionsService._query_for_user(ShootingSession, user)
 
         sessions = session.exec(query).all()
         if not sessions:
@@ -314,7 +297,7 @@ class SessionService:
                 if ss.expires_at and ss.expires_at <= datetime.utcnow():
                     raise HTTPException(status_code=404, detail="Session not found")
 
-        update_dict = data.model_dump(exclude_unset=True, exclude_none=True)
+        update_dict = data.model_dump(exclude_unset=True)
         
         if not update_dict:
             return {"session": ss, "remaining_ammo": None}
@@ -330,15 +313,11 @@ class SessionService:
                 del update_dict["date"]
 
         if "gun_id" in update_dict:
-            if update_dict["gun_id"] == "":
-                del update_dict["gun_id"]
-            elif update_dict["gun_id"] is None:
+            if update_dict["gun_id"] == "" or update_dict["gun_id"] is None:
                 del update_dict["gun_id"]
         
         if "ammo_id" in update_dict:
-            if update_dict["ammo_id"] == "":
-                del update_dict["ammo_id"]
-            elif update_dict["ammo_id"] is None:
+            if update_dict["ammo_id"] == "" or update_dict["ammo_id"] is None:
                 del update_dict["ammo_id"]
 
         if "notes" in update_dict:
@@ -353,8 +332,8 @@ class SessionService:
         new_hits = update_dict.get("hits", ss.hits)
 
         if "gun_id" in update_dict or "ammo_id" in update_dict or "shots" in update_dict or "hits" in update_dict:
-            gun = SessionService._get_gun(session, new_gun_id, user)
-            ammo = SessionService._get_ammo(session, new_ammo_id, user)
+            gun = ShootingSessionsService._get_gun(session, new_gun_id, user)
+            ammo = ShootingSessionsService._get_ammo(session, new_ammo_id, user)
             
             if not gun:
                 raise HTTPException(status_code=404, detail="Broń nie została znaleziona")
@@ -381,7 +360,7 @@ class SessionService:
                     )
                 
                 if ammo_changed:
-                    old_ammo = SessionService._get_ammo(session, old_ammo_id, user)
+                    old_ammo = ShootingSessionsService._get_ammo(session, old_ammo_id, user)
                     if old_ammo and old_ammo.units_in_package is not None:
                         old_ammo.units_in_package += old_shots
                         session.add(old_ammo)
@@ -410,50 +389,18 @@ class SessionService:
         if "distance_m" in update_dict:
             if update_dict["distance_m"] is None:
                 del update_dict["distance_m"]
-            elif isinstance(update_dict["distance_m"], str):
-                if update_dict["distance_m"] == "":
-                    del update_dict["distance_m"]
-                else:
-                    try:
-                        update_dict["distance_m"] = float(update_dict["distance_m"])
-                    except (ValueError, TypeError):
-                        del update_dict["distance_m"]
 
         if "hits" in update_dict:
             if update_dict["hits"] is None:
                 del update_dict["hits"]
-            elif isinstance(update_dict["hits"], str):
-                if update_dict["hits"] == "":
-                    del update_dict["hits"]
-                else:
-                    try:
-                        update_dict["hits"] = int(update_dict["hits"])
-                    except (ValueError, TypeError):
-                        del update_dict["hits"]
 
         if "shots" in update_dict:
             if update_dict["shots"] is None:
                 del update_dict["shots"]
-            elif isinstance(update_dict["shots"], str):
-                if update_dict["shots"] == "":
-                    del update_dict["shots"]
-                else:
-                    try:
-                        update_dict["shots"] = int(update_dict["shots"])
-                    except (ValueError, TypeError):
-                        del update_dict["shots"]
 
         if "cost" in update_dict:
             if update_dict["cost"] is None:
                 del update_dict["cost"]
-            elif isinstance(update_dict["cost"], str):
-                if update_dict["cost"] == "":
-                    del update_dict["cost"]
-                else:
-                    try:
-                        update_dict["cost"] = float(update_dict["cost"])
-                    except (ValueError, TypeError):
-                        del update_dict["cost"]
 
         final_distance_m = update_dict.get("distance_m", ss.distance_m)
         final_hits = update_dict.get("hits", ss.hits)
@@ -467,9 +414,9 @@ class SessionService:
 
         if "cost" not in update_dict and ("shots" in update_dict or "ammo_id" in update_dict):
             if "ammo_id" in update_dict:
-                ammo = SessionService._get_ammo(session, update_dict["ammo_id"], user)
+                ammo = ShootingSessionsService._get_ammo(session, update_dict["ammo_id"], user)
             else:
-                ammo = SessionService._get_ammo(session, new_ammo_id, user)
+                ammo = ShootingSessionsService._get_ammo(session, new_ammo_id, user)
             if ammo:
                 final_shots = update_dict.get("shots", ss.shots)
                 update_dict["cost"] = SessionCalculationService.calculate_cost(ammo.price_per_unit, final_shots)
@@ -483,7 +430,7 @@ class SessionService:
 
         remaining_ammo = None
         if new_ammo_id != old_ammo_id or new_shots != old_shots:
-            final_ammo = SessionService._get_ammo(session, new_ammo_id, user)
+            final_ammo = ShootingSessionsService._get_ammo(session, new_ammo_id, user)
             if final_ammo:
                 remaining_ammo = final_ammo.units_in_package
 
@@ -492,6 +439,30 @@ class SessionService:
             "remaining_ammo": remaining_ammo
         }
 
+    @staticmethod
+    async def delete_shooting_session(
+        session: Session,
+        session_id: str,
+        user: UserContext
+    ) -> Dict[str, str]:
+        ss = session.get(ShootingSession, session_id)
+        if not ss:
+            raise HTTPException(status_code=404, detail="Session not found")
+        
+        if user.role != UserRole.admin:
+            if ss.user_id != user.user_id:
+                raise HTTPException(status_code=404, detail="Session not found")
+            if user.is_guest:
+                if ss.expires_at and ss.expires_at <= datetime.utcnow():
+                    raise HTTPException(status_code=404, detail="Session not found")
 
+        ammo = ShootingSessionsService._get_ammo(session, ss.ammo_id, user)
+        if ammo and ammo.units_in_package is not None:
+            ammo.units_in_package += ss.shots
+            session.add(ammo)
 
+        session.delete(ss)
+        session.commit()
+        
+        return {"message": "Session deleted"}
 

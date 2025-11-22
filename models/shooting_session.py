@@ -10,7 +10,7 @@ class ShootingSessionBase(SQLModel):
     shots: int = Field(gt=0)
     cost: Optional[float] = Field(default=None, ge=0)
     notes: Optional[str] = Field(default=None, max_length=500)
-    distance_m: Optional[int] = Field(default=None, gt=0)
+    distance_m: Optional[float] = Field(default=None, gt=0)
     hits: Optional[int] = Field(default=None, ge=0)
     accuracy_percent: Optional[float] = Field(default=None, ge=0, le=100)
     ai_comment: Optional[str] = Field(default=None, max_length=1000)
