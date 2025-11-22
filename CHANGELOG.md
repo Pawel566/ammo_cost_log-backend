@@ -1,5 +1,25 @@
 # Changelog
 
+## [0.3.7.1] – 2025-01-XX
+### Naprawiono
+- Naprawiono błąd `AttributeError: 'ShootingSessionRead' object has no attribute 'get'` przy usuwaniu sesji strzeleckich
+- Naprawiono konflikt nazw funkcji `get_session` w routerze z funkcją `get_session` z `database.py`
+- Ujednolicono nazwy parametrów z `db` na `session` w całym serwisie sesji strzeleckich
+- Przywrócono funkcję `validate_ammo_gun_compatibility` która była zakomentowana
+- Poprawiono obliczanie kosztu przy edycji sesji - zachowuje oryginalny koszt stały z pierwotnej sesji
+
+### Zmieniono
+- Refaktoryzacja sesji strzeleckich - usunięto stare pliki (`schemas/session.py`, `services/session_service.py`)
+- Utworzono nowe pliki: `schemas/shooting_sessions.py`, `services/shooting_sessions_service.py`
+- Ujednolicono architekturę - jeden model, jeden schema, jeden serwis, jeden router dla sesji strzeleckich
+- Naprawiono endpointy PATCH i DELETE dla sesji strzeleckich
+- Dodano `response_model=Dict[str, str]` dla DELETE endpoint aby uniknąć błędów serializacji
+- Ujednolicono typ `distance_m` z `int` na `float` w modelu ShootingSession
+
+### Dodano
+- Nowe testy dla sesji strzeleckich w `tests/test_shooting_sessions.py`
+- Walidacja uprawnień użytkownika w `delete_shooting_session`
+
 ## [0.3.5] – 2025-11-17
 ### Dodano
 - Endpointy zarządzania kontem użytkownika (`/api/account`)

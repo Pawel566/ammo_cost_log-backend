@@ -7,7 +7,7 @@ Backend do aplikacji zarządzania strzelectwem z inteligentnym asystentem AI.
 - **Zarządzanie sprzętem** - katalog broni i amunicji przypisany do użytkownika
 - **Tryby użytkowników** - role guest/user/admin z izolacją danych i sesją gościa 24h
 - **Walidacja danych** - schematy Pydantic w `schemas/` z ograniczeniami długości i wartości
-- **Śledzenie kosztów** - sesje strzeleckie z automatycznym obliczaniem wydatków
+- **Śledzenie kosztów** - sesje strzeleckie z automatycznym obliczaniem wydatków (koszt stały + cena amunicji × liczba strzałów)
 - **Analiza celności** - pomiar wyników z komentarzami AI (`gpt-4o-mini`)
 - **Statystyki** - miesięczne podsumowania i analizy (z paginacją `limit`/`offset`/`search`)
 - **Uwierzytelnianie** - Supabase Auth z szczegółową obsługą błędów
@@ -38,13 +38,13 @@ python3 -m uvicorn main:app --reload --host 0.0.0.0 --port 8000
 - `GET /api/ammo/` - lista amunicji (obsługuje `limit`, `offset`, `search`)
 - `POST /api/ammo/` - dodaj amunicję
 
-### Sesje
-- `POST /api/sessions/cost` - dodaj sesję kosztową
-- `POST /api/sessions/accuracy` - dodaj sesję celnościową
-- `GET /api/sessions/` - lista sesji kosztowych i celnościowych (obsługuje `limit`, `offset`, `search`)s
-- `GET /api/sessions/summary` - statystyki miesięczne (obsługuje `limit`, `offset`, `search`)
-- `GET /api/shooting-sessions/` - lista sesji strzeleckich
-- `POST /api/shooting-sessions/` - dodaj sesję strzelecką
+### Sesje Strzeleckie
+- `GET /api/shooting-sessions/` - lista sesji strzeleckich (obsługuje `limit`, `offset`, `search`, `gun_id`, `date_from`, `date_to`)
+- `POST /api/shooting-sessions/` - dodaj sesję strzelecką (hybrydowa - może zawierać zarówno koszt jak i celność)
+- `GET /api/shooting-sessions/{id}` - pobierz pojedynczą sesję
+- `PATCH /api/shooting-sessions/{id}` - edytuj sesję (zachowuje koszt stały przy zmianie amunicji/liczby strzałów)
+- `DELETE /api/shooting-sessions/{id}` - usuń sesję (automatycznie zwraca amunicję do magazynu)
+- `GET /api/shooting-sessions/summary` - statystyki miesięczne (obsługuje `limit`, `offset`, `search`)
 
 ### Uwierzytelnianie i Konto
 - `POST /api/auth/login` - logowanie
