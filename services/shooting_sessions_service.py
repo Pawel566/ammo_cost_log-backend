@@ -441,8 +441,8 @@ class ShootingSessionsService:
         }
 
     @staticmethod
-        async def delete_shooting_session(db: Session, session_id: int, user: UserContext):
-            ss = db.get(ShootingSession, session_id)
+    async def delete_shooting_session(db: Session, session_id: int, user: UserContext):
+        ss = db.get(ShootingSession, session_id)
         if not ss:
             raise HTTPException(status_code=404, detail="Session not found")
 
@@ -450,13 +450,14 @@ class ShootingSessionsService:
             if ss.expires_at and ss.expires_at <= datetime.utcnow():
                 raise HTTPException(status_code=404, detail="Session not found")
 
-    ammo = ShootingSessionsService._get_ammo(session, ss.ammo_id, user)
-    if ammo and ammo.units_in_package is not None:
-        ammo.units_in_package += ss.shots
-        session.add(ammo)
+        # Zwracamy amunicję do magazynu
+        ammo = ShootingSessionsService._get_ammo(db, ss.ammo_id, user)
+        if ammo and ammo.units_in_package is not None:
+            ammo.units_in_package += ss.shots
+            db.add(ammo)
 
-    session.delete(ss)
-    session.commit()
+        db.delete(ss)
+        db.commit()
 
-    return {"message": "Session deleted"}
+        return {"message": "Session deleted"}
 
