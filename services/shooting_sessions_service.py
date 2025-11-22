@@ -126,29 +126,29 @@ class ShootingSessionsService:
         return query.where(or_(*conditions))
 
     @staticmethod
-    def _get_gun(session: Session, gun_id: str, user: UserContext) -> Optional[Gun]:
+    def _get_gun(db: Session, gun_id: str, user: UserContext) -> Optional[Gun]:
         query = select(Gun).where(Gun.id == gun_id)
         if user.role != UserRole.admin:
             query = query.where(Gun.user_id == user.user_id)
             if user.is_guest:
                 query = query.where(or_(Gun.expires_at.is_(None), Gun.expires_at > datetime.utcnow()))
-        return session.exec(query).first()
+        return db.exec(query).first()
 
     @staticmethod
-    def _get_ammo(session: Session, ammo_id: str, user: UserContext) -> Optional[Ammo]:
+    def _get_ammo(db: Session, ammo_id: str, user: UserContext) -> Optional[Ammo]:
         query = select(Ammo).where(Ammo.id == ammo_id)
         if user.role != UserRole.admin:
             query = query.where(Ammo.user_id == user.user_id)
             if user.is_guest:
                 query = query.where(or_(Ammo.expires_at.is_(None), Ammo.expires_at > datetime.utcnow()))
-        return session.exec(query).first()
+        return db.exec(query).first()
 
     @staticmethod
     async def get_all_sessions(
-        session: Session, 
-        user: UserContext, 
-        limit: int, 
-        offset: int, 
+        db: Session,
+        user: UserContext,
+        limit: int,
+        offset: int,
         search: Optional[str],
         gun_id: Optional[str] = None,
         date_from: Optional[str] = None,
@@ -176,8 +176,8 @@ class ShootingSessionsService:
         query = ShootingSessionsService._apply_session_search(base_query, ShootingSession, search)
         count_query = query.with_only_columns(func.count(ShootingSession.id)).order_by(None)
 
-        total = session.exec(count_query).one()
-        items = session.exec(
+        total = db.exec(count_query).one()
+        items = db.exec(
             query.order_by(ShootingSession.date.desc())
                  .offset(offset)
                  .limit(limit)
@@ -190,13 +190,13 @@ class ShootingSessionsService:
 
     @staticmethod
     async def create_shooting_session(
-        session: Session,
+        db: Session,
         user: UserContext,
         data: Any
     ) -> Dict[str, Any]:
         parsed_date = SessionCalculationService.parse_date(data.date)
-        gun = ShootingSessionsService._get_gun(session, data.gun_id, user)
-        ammo = ShootingSessionsService._get_ammo(session, data.ammo_id, user)
+        gun = ShootingSessionsService._get_gun(db, data.gun_id, user)
+        ammo = ShootingSessionsService._get_ammo(db, data.ammo_id, user)
         
         hits = data.hits if data.hits is not None else None
         SessionValidationService.validate_session_data(gun, ammo, data.shots, hits)
@@ -234,12 +234,12 @@ class ShootingSessionsService:
             expires_at=target_expiration
         )
         
-        session.add(new_session)
-        session.add(ammo)
-        session.add(gun)
-        session.commit()
-        session.refresh(new_session)
-        await MaintenanceService.update_last_maintenance_rounds(session, user, data.gun_id)
+        db.add(new_session)
+        db.add(ammo)
+        db.add(gun)
+        db.commit()
+        db.refresh(new_session)
+        await MaintenanceService.update_last_maintenance_rounds(db, user, data.gun_id)
         
         return {
             "session": new_session,
@@ -247,10 +247,16 @@ class ShootingSessionsService:
         }
 
     @staticmethod
-    async def get_monthly_summary(session: Session, user: UserContext, limit: int, offset: int, search: Optional[str]) -> Dict[str, Any]:
+    async def get_monthly_summary(
+        db: Session,
+        user: UserContext,
+        limit: int,
+        offset: int,
+        search: Optional[str]
+    ) -> Dict[str, Any]:
         query = ShootingSessionsService._query_for_user(ShootingSession, user)
 
-        sessions = session.exec(query).all()
+        sessions = db.exec(query).all()
         if not sessions:
             return {"total": 0, "items": []}
 
@@ -282,12 +288,12 @@ class ShootingSessionsService:
 
     @staticmethod
     async def update_shooting_session(
-        session: Session,
+        db: Session,
         session_id: str,
         user: UserContext,
         data: Any
     ) -> Dict[str, Any]:
-        ss = session.get(ShootingSession, session_id)
+        ss = db.get(ShootingSession, session_id)
         if not ss:
             raise HTTPException(status_code=404, detail="Session not found")
         
@@ -333,8 +339,8 @@ class ShootingSessionsService:
         new_hits = update_dict.get("hits", ss.hits)
 
         if "gun_id" in update_dict or "ammo_id" in update_dict or "shots" in update_dict or "hits" in update_dict:
-            gun = ShootingSessionsService._get_gun(session, new_gun_id, user)
-            ammo = ShootingSessionsService._get_ammo(session, new_ammo_id, user)
+            gun = ShootingSessionsService._get_gun(db, new_gun_id, user)
+            ammo = ShootingSessionsService._get_ammo(db, new_ammo_id, user)
             
             if not gun:
                 raise HTTPException(status_code=404, detail="Broń nie została znaleziona")
@@ -361,15 +367,15 @@ class ShootingSessionsService:
                     )
                 
                 if ammo_changed:
-                    old_ammo = ShootingSessionsService._get_ammo(session, old_ammo_id, user)
+                    old_ammo = ShootingSessionsService._get_ammo(db, old_ammo_id, user)
                     if old_ammo and old_ammo.units_in_package is not None:
                         old_ammo.units_in_package += old_shots
-                        session.add(old_ammo)
+                        db.add(old_ammo)
                 
                 if ammo.units_in_package is None or ammo.units_in_package < new_shots:
                     if old_ammo and old_ammo.units_in_package is not None:
                         old_ammo.units_in_package -= old_shots
-                        session.add(old_ammo)
+                        db.add(old_ammo)
                     raise HTTPException(
                         status_code=400,
                         detail=f"Za mało amunicji. Pozostało tylko {ammo.units_in_package or 0} sztuk."
@@ -380,12 +386,12 @@ class ShootingSessionsService:
                         ammo.units_in_package -= new_shots
                     else:
                         ammo.units_in_package -= shots_diff
-                    session.add(ammo)
+                    db.add(ammo)
 
             if shots_diff < 0:
                 if ammo.units_in_package is not None:
                     ammo.units_in_package += abs(shots_diff)
-                    session.add(ammo)
+                    db.add(ammo)
 
         if "distance_m" in update_dict:
             if update_dict["distance_m"] is None:
@@ -415,9 +421,9 @@ class ShootingSessionsService:
 
         if "cost" not in update_dict and ("shots" in update_dict or "ammo_id" in update_dict):
             if "ammo_id" in update_dict:
-                ammo = ShootingSessionsService._get_ammo(session, update_dict["ammo_id"], user)
+                ammo = ShootingSessionsService._get_ammo(db, update_dict["ammo_id"], user)
             else:
-                ammo = ShootingSessionsService._get_ammo(session, new_ammo_id, user)
+                ammo = ShootingSessionsService._get_ammo(db, new_ammo_id, user)
             if ammo:
                 final_shots = update_dict.get("shots", ss.shots)
                 update_dict["cost"] = SessionCalculationService.calculate_cost(ammo.price_per_unit, final_shots)
@@ -425,13 +431,13 @@ class ShootingSessionsService:
         for key, value in update_dict.items():
             setattr(ss, key, value)
 
-        session.add(ss)
-        session.commit()
-        session.refresh(ss)
+        db.add(ss)
+        db.commit()
+        db.refresh(ss)
 
         remaining_ammo = None
         if new_ammo_id != old_ammo_id or new_shots != old_shots:
-            final_ammo = ShootingSessionsService._get_ammo(session, new_ammo_id, user)
+            final_ammo = ShootingSessionsService._get_ammo(db, new_ammo_id, user)
             if final_ammo:
                 remaining_ammo = final_ammo.units_in_package
 
