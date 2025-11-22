@@ -447,7 +447,7 @@ class ShootingSessionsService:
         }
 
     @staticmethod
-    async def delete_shooting_session(db: Session, session_id: int, user: UserContext):
+    async def delete_shooting_session(db: Session, session_id: str, user: UserContext):
         ss = db.get(ShootingSession, session_id)
         if not ss:
             raise HTTPException(status_code=404, detail="Session not found")
