@@ -74,8 +74,8 @@ class SessionValidationService:
 
 class SessionCalculationService:
     @staticmethod
-    def calculate_cost(price_per_unit: float, shots: int) -> float:
-        return round(price_per_unit * shots, 2)
+    def calculate_cost(price_per_unit: float, shots: int, fixed_cost: float = 0.0) -> float:
+        return round(fixed_cost + (price_per_unit * shots), 2)
 
     @staticmethod
     def calculate_accuracy(hits: int, shots: int) -> float:
@@ -425,7 +425,15 @@ class ShootingSessionsService:
                 ammo = ShootingSessionsService._get_ammo(session, new_ammo_id, user)
             if ammo:
                 final_shots = update_dict.get("shots", ss.shots)
-                update_dict["cost"] = SessionCalculationService.calculate_cost(ammo.price_per_unit, final_shots)
+                old_cost = ss.cost if ss.cost else 0.0
+                old_ammo_cost = 0.0
+                if ss.ammo_id and ss.shots:
+                    old_ammo = ShootingSessionsService._get_ammo(session, ss.ammo_id, user)
+                    if old_ammo:
+                        old_ammo_cost = old_ammo.price_per_unit * ss.shots
+                fixed_cost = max(0.0, old_cost - old_ammo_cost)
+                new_ammo_cost = ammo.price_per_unit * final_shots
+                update_dict["cost"] = round(fixed_cost + new_ammo_cost, 2)
 
         for key, value in update_dict.items():
             setattr(ss, key, value)
