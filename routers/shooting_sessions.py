@@ -95,7 +95,7 @@ async def get_monthly_summary(
 
 @router.get("/{session_id}", response_model=ShootingSessionRead)
 async def get_session(
-    session_id: str,
+    session_id: UUID,
     db: Session = Depends(get_session),
     user: UserContext = Depends(role_required([UserRole.guest, UserRole.user, UserRole.admin]))
 ):
@@ -129,7 +129,7 @@ async def get_session(
 
 @router.patch("/{session_id}", response_model=Dict[str, Any])
 async def update_session(
-    session_id: str,
+    session_id: UUID,
     session_data: ShootingSessionUpdate,
     db: Session = Depends(get_session),
     user: UserContext = Depends(role_required([UserRole.guest, UserRole.user, UserRole.admin]))

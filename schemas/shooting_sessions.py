@@ -49,3 +49,4 @@ class MonthlySummary(BaseModel):
     total_shots: int
 
 
+
