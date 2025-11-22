@@ -20,10 +20,10 @@ class MonthlySummaryResponse(PaginatedResponse[MonthlySummary]):
 @router.post("/", response_model=Dict[str, Any])
 async def create_shooting_session(
     session_data: ShootingSessionCreate,
-    db: Session = Depends(get_session),
+    session: Session = Depends(get_session),
     user: UserContext = Depends(role_required([UserRole.guest, UserRole.user, UserRole.admin]))
 ):
-    result = await ShootingSessionsService.create_shooting_session(db, user, session_data)
+    result = await ShootingSessionsService.create_shooting_session(session, user, session_data)
     return {
         "id": result["session"].id,
         "gun_id": result["session"].gun_id,
@@ -41,7 +41,7 @@ async def create_shooting_session(
 
 @router.get("/", response_model=list[ShootingSessionRead])
 async def get_all_sessions(
-    db: Session = Depends(get_session),
+    session: Session = Depends(get_session),
     user: UserContext = Depends(role_required([UserRole.guest, UserRole.user, UserRole.admin])),
     limit: int = Query(1000, ge=1, le=10000),
     offset: int = Query(0, ge=0),
@@ -51,7 +51,7 @@ async def get_all_sessions(
     date_to: Optional[str] = Query(default=None)
 ):
     result = await ShootingSessionsService.get_all_sessions(
-        db, user, limit, offset, search, gun_id, date_from, date_to
+        session, user, limit, offset, search, gun_id, date_from, date_to
     )
     sessions = result["items"]
     return [
@@ -75,13 +75,13 @@ async def get_all_sessions(
 
 @router.get("/summary", response_model=MonthlySummaryResponse)
 async def get_monthly_summary(
-    db: Session = Depends(get_session),
+    session: Session = Depends(get_session),
     user: UserContext = Depends(role_required([UserRole.guest, UserRole.user, UserRole.admin])),
     limit: int = Query(12, ge=1, le=120),
     offset: int = Query(0, ge=0),
     search: Optional[str] = Query(default=None, min_length=1)
 ):
-    result = await ShootingSessionsService.get_monthly_summary(db, user, limit, offset, search)
+    result = await ShootingSessionsService.get_monthly_summary(session, user, limit, offset, search)
     return {
         "total": result["total"],
         "items": result["items"],
@@ -91,12 +91,12 @@ async def get_monthly_summary(
 
 
 @router.get("/{session_id}", response_model=ShootingSessionRead)
-async def get_session(
+async def get_shooting_session(
     session_id: str,
-    db: Session = Depends(get_session),
+    session: Session = Depends(get_session),
     user: UserContext = Depends(role_required([UserRole.guest, UserRole.user, UserRole.admin]))
 ):
-    ss = db.get(ShootingSession, session_id)
+    ss = session.get(ShootingSession, session_id)
     if not ss:
         raise HTTPException(status_code=404, detail="Session not found")
     
@@ -128,10 +128,10 @@ async def get_session(
 async def update_session(
     session_id: str,
     session_data: ShootingSessionUpdate,
-    db: Session = Depends(get_session),
+    session: Session = Depends(get_session),
     user: UserContext = Depends(role_required([UserRole.guest, UserRole.user, UserRole.admin]))
 ):
-    result = await ShootingSessionsService.update_shooting_session(db, session_id, user, session_data)
+    result = await ShootingSessionsService.update_shooting_session(session, session_id, user, session_data)
     ss = result["session"]
     
     return {
@@ -152,8 +152,8 @@ async def update_session(
 @router.delete("/{session_id}", response_model=Dict[str, str])
 async def delete_session(
     session_id: str,
-    db: Session = Depends(get_session),
+    session: Session = Depends(get_session),
     user: UserContext = Depends(role_required([UserRole.guest, UserRole.user, UserRole.admin]))
 ):
-    result = await ShootingSessionsService.delete_shooting_session(db, session_id, user)
+    result = await ShootingSessionsService.delete_shooting_session(session, session_id, user)
     return result
