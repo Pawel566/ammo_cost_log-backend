@@ -1,6 +1,6 @@
 # Changelog
 
-## [0.3.7.1] – 2025-01-XX
+## [0.3.7.1] – 2025-01-XXd
 ### Naprawiono
 - Naprawiono błąd `AttributeError: 'ShootingSessionRead' object has no attribute 'get'` przy usuwaniu sesji strzeleckich
 - Naprawiono konflikt nazw funkcji `get_session` w routerze z funkcją `get_session` z `database.py`
