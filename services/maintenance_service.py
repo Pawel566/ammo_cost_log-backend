@@ -55,7 +55,8 @@ class MaintenanceService:
                 "date": maint.date,
                 "notes": maint.notes,
                 "rounds_since_last": maint.rounds_since_last,
-                "expires_at": maint.expires_at
+                "expires_at": maint.expires_at,
+                "activities": maint.activities
             }
             
             gun_query = select(Gun).where(Gun.id == maint.gun_id)
@@ -125,7 +126,8 @@ class MaintenanceService:
             user_id=user.user_id,
             date=maintenance_date,
             notes=data.get("notes"),
-            rounds_since_last=rounds_since_last
+            rounds_since_last=rounds_since_last,
+            activities=data.get("activities")
         )
         if user.is_guest:
             maintenance.expires_at = user.expires_at
@@ -156,6 +158,8 @@ class MaintenanceService:
                 maintenance.date = data["date"]
         if "notes" in data:
             maintenance.notes = data.get("notes")
+        if "activities" in data:
+            maintenance.activities = data.get("activities")
         if "rounds_since_last" in data and data["rounds_since_last"] is not None:
             maintenance.rounds_since_last = data["rounds_since_last"]
         if user.is_guest:

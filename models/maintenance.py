@@ -1,6 +1,6 @@
 from sqlmodel import SQLModel, Field, Relationship, Column
-from sqlalchemy import ForeignKey
-from typing import Optional
+from sqlalchemy import ForeignKey, JSON
+from typing import Optional, List
 from uuid import uuid4
 from datetime import date as Date, datetime
 
@@ -9,6 +9,7 @@ class MaintenanceBase(SQLModel):
     date: Date
     notes: Optional[str] = Field(default=None, max_length=500)
     rounds_since_last: int = Field(ge=0, default=0)
+    activities: Optional[List[str]] = Field(default=None, sa_column=Column(JSON))
 
 
 class Maintenance(MaintenanceBase, table=True):
