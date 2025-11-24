@@ -14,6 +14,7 @@ class GunRead(GunCreate):
     id: str
     user_id: str
     expires_at: Optional[datetime] = None
+    image_path: Optional[str] = None
 
     model_config = ConfigDict(from_attributes=True)
 
