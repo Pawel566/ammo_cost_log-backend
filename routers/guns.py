@@ -12,13 +12,16 @@ import asyncio
 
 # Import Supabase service functions only when needed to avoid import errors
 try:
-    from services.supabase_service import upload_weapon_image, get_signed_image_url
+    from services.supabase_service import upload_weapon_image, get_signed_image_url, delete_weapon_image
 except ImportError:
     # If Supabase is not available, define stub functions
     def upload_weapon_image(*args, **kwargs):
         raise ValueError("Supabase storage is not configured")
     
     def get_signed_image_url(*args, **kwargs):
+        raise ValueError("Supabase storage is not configured")
+    
+    def delete_weapon_image(*args, **kwargs):
         raise ValueError("Supabase storage is not configured")
 
 router = APIRouter()
@@ -143,3 +146,39 @@ async def delete_gun(
     user: UserContext = Depends(role_required([UserRole.guest, UserRole.user, UserRole.admin]))
 ):
     return await GunService.delete_gun(session, gun_id, user)
+
+@router.delete("/{gun_id}/image")
+async def delete_weapon_image_endpoint(
+    gun_id: str,
+    session: Session = Depends(get_session),
+    user: UserContext = Depends(role_required([UserRole.user, UserRole.admin]))
+):
+    """
+    Delete weapon image from Supabase Storage.
+    Only authenticated users (not guests) can delete images.
+    """
+    if user.is_guest:
+        raise HTTPException(status_code=403, detail="Goście nie mogą usuwać zdjęć")
+    
+    gun = await GunService._get_single_gun(session, gun_id, user)
+    
+    if gun.user_id != user.user_id and user.role != UserRole.admin:
+        raise HTTPException(status_code=403, detail="Brak uprawnień do tej broni")
+    
+    if not gun.image_path:
+        return {"message": "Brak zdjęcia do usunięcia"}
+    
+    try:
+        await asyncio.to_thread(delete_weapon_image, gun.image_path)
+        
+        gun.image_path = None
+        session.add(gun)
+        await asyncio.to_thread(session.commit)
+        await asyncio.to_thread(session.refresh, gun)
+        
+        return {"message": "Zdjęcie zostało usunięte"}
+    except ValueError as e:
+        # Jeśli Supabase nie jest skonfigurowane
+        raise HTTPException(status_code=503, detail="Usługa przechowywania zdjęć nie jest dostępna")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Błąd podczas usuwania zdjęcia: {str(e)}")

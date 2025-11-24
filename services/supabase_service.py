@@ -69,5 +69,23 @@ def get_signed_image_url(path: str, expires: int = 3600) -> str:
         raise ValueError(f"Failed to generate signed URL: {str(e)}")
 
 
+def delete_weapon_image(path: str) -> None:
+    """
+    Delete weapon image from Supabase Storage.
+    
+    Args:
+        path: Storage path of the image to delete
+    """
+    if not supabase:
+        raise ValueError("Supabase storage client not initialized")
+    
+    try:
+        supabase.storage.from_(BUCKET).remove([path])
+    except Exception as e:
+        # If file doesn't exist, that's okay
+        if "not found" not in str(e).lower() and "does not exist" not in str(e).lower():
+            raise
+
+
 
 
