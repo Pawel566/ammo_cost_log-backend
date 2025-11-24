@@ -8,8 +8,18 @@ from database import get_session
 from routers.auth import role_required
 from services.gun_service import GunService
 from services.user_context import UserContext, UserRole
-from services.supabase_service import upload_weapon_image, get_signed_image_url
 import asyncio
+
+# Import Supabase service functions only when needed to avoid import errors
+try:
+    from services.supabase_service import upload_weapon_image, get_signed_image_url
+except ImportError:
+    # If Supabase is not available, define stub functions
+    def upload_weapon_image(*args, **kwargs):
+        raise ValueError("Supabase storage is not configured")
+    
+    def get_signed_image_url(*args, **kwargs):
+        raise ValueError("Supabase storage is not configured")
 
 router = APIRouter()
 
@@ -75,6 +85,9 @@ async def upload_weapon_image_endpoint(
         await asyncio.to_thread(session.refresh, gun)
         
         return {"image_path": image_path}
+    except ValueError as e:
+        # Jeśli Supabase nie jest skonfigurowane
+        raise HTTPException(status_code=503, detail="Usługa przechowywania zdjęć nie jest dostępna. Skonfiguruj Supabase Storage.")
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Błąd podczas przesyłania zdjęcia: {str(e)}")
 
@@ -86,18 +99,25 @@ async def get_weapon_image(
 ):
     """
     Get signed URL for weapon image.
-    Returns null if no image is uploaded.
+    Returns null if no image is uploaded or if Supabase is not configured.
     """
-    gun = await GunService._get_single_gun(session, gun_id, user)
-    
-    if not gun.image_path:
-        return {"url": None}
-    
     try:
-        signed_url = await asyncio.to_thread(get_signed_image_url, gun.image_path)
-        return {"url": signed_url}
+        gun = await GunService._get_single_gun(session, gun_id, user)
+        
+        if not gun.image_path:
+            return {"url": None}
+        
+        try:
+            signed_url = await asyncio.to_thread(get_signed_image_url, gun.image_path)
+            return {"url": signed_url}
+        except (ValueError, Exception) as e:
+            # Jeśli Supabase nie jest skonfigurowane lub wystąpił błąd, zwróć null zamiast błędu
+            print(f"Warning: Could not generate signed URL: {e}")
+            return {"url": None}
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Błąd podczas generowania URL: {str(e)}")
+        # Jeśli nie można pobrać broni, zwróć null zamiast błędu
+        print(f"Warning: Could not get weapon image: {e}")
+        return {"url": None}
 
 @router.get("/{gun_id}", response_model=GunRead)
 async def get_gun(
