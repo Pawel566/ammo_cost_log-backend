@@ -68,3 +68,4 @@ def get_signed_image_url(path: str, expires: int = 3600) -> str:
     except Exception as e:
         raise ValueError(f"Failed to generate signed URL: {str(e)}")
 
+

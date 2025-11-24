@@ -23,14 +23,6 @@ async def get_guns(
 ):
     return await GunService.get_all_guns(session, user, limit, offset, search)
 
-@router.get("/{gun_id}", response_model=GunRead)
-async def get_gun(
-    gun_id: str,
-    session: Session = Depends(get_session),
-    user: UserContext = Depends(role_required([UserRole.guest, UserRole.user, UserRole.admin]))
-):
-    return await GunService.get_gun_by_id(session, gun_id, user)
-
 @router.post("", response_model=GunRead)
 async def add_gun(
     gun_data: GunCreate,
@@ -38,23 +30,6 @@ async def add_gun(
     user: UserContext = Depends(role_required([UserRole.guest, UserRole.user, UserRole.admin]))
 ):
     return await GunService.create_gun(session, gun_data, user)
-
-@router.put("/{gun_id}", response_model=GunRead)
-async def update_gun(
-    gun_id: str,
-    gun_data: GunUpdate,
-    session: Session = Depends(get_session),
-    user: UserContext = Depends(role_required([UserRole.guest, UserRole.user, UserRole.admin]))
-):
-    return await GunService.update_gun(session, gun_id, gun_data, user)
-
-@router.delete("/{gun_id}")
-async def delete_gun(
-    gun_id: str,
-    session: Session = Depends(get_session),
-    user: UserContext = Depends(role_required([UserRole.guest, UserRole.user, UserRole.admin]))
-):
-    return await GunService.delete_gun(session, gun_id, user)
 
 @router.post("/{gun_id}/upload-image")
 async def upload_weapon_image_endpoint(
@@ -123,3 +98,28 @@ async def get_weapon_image(
         return {"url": signed_url}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Błąd podczas generowania URL: {str(e)}")
+
+@router.get("/{gun_id}", response_model=GunRead)
+async def get_gun(
+    gun_id: str,
+    session: Session = Depends(get_session),
+    user: UserContext = Depends(role_required([UserRole.guest, UserRole.user, UserRole.admin]))
+):
+    return await GunService.get_gun_by_id(session, gun_id, user)
+
+@router.put("/{gun_id}", response_model=GunRead)
+async def update_gun(
+    gun_id: str,
+    gun_data: GunUpdate,
+    session: Session = Depends(get_session),
+    user: UserContext = Depends(role_required([UserRole.guest, UserRole.user, UserRole.admin]))
+):
+    return await GunService.update_gun(session, gun_id, gun_data, user)
+
+@router.delete("/{gun_id}")
+async def delete_gun(
+    gun_id: str,
+    session: Session = Depends(get_session),
+    user: UserContext = Depends(role_required([UserRole.guest, UserRole.user, UserRole.admin]))
+):
+    return await GunService.delete_gun(session, gun_id, user)
