@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.3.8] – 2025-01-XX
+### Dodano
+- Rozszerzone ustawienia użytkownika w modelu UserSettings:
+  - `maintenance_rounds_limit` - limit strzałów do konserwacji (domyślnie 500)
+  - `maintenance_days_limit` - limit czasu między konserwacjami w dniach (domyślnie 90)
+  - `maintenance_notifications_enabled` - włącz/wyłącz powiadomienia o konserwacji (domyślnie true)
+  - `low_ammo_notifications_enabled` - włącz/wyłącz powiadomienia o niskiej amunicji (domyślnie true)
+  - `ai_analysis_intensity` - intensywność analizy AI (domyślnie "normalna")
+  - `ai_auto_comments` - automatyczne komentarze AI (domyślnie false)
+
+### Zmieniono
+- Zaktualizowano schematy `UserSettingsRead` i `UserSettingsUpdate` o nowe pola
+- Naprawiono funkcję `update_settings` w `UserSettingsService` - dodano obsługę wszystkich nowych pól
+- Domyślne wartości ustawień są teraz ustawiane przy tworzeniu nowego rekordu ustawień
+
 ## [0.3.7.1] – 2025-01-XXd
 ### Naprawiono
 - Naprawiono błąd `AttributeError: 'ShootingSessionRead' object has no attribute 'get'` przy usuwaniu sesji strzeleckich
