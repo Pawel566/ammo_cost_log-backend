@@ -9,6 +9,7 @@ class GunBase(SQLModel):
     caliber: Optional[str] = Field(default=None, max_length=20)
     type: Optional[str] = Field(default=None, max_length=50)
     notes: Optional[str] = Field(default=None, max_length=500)
+    image_path: Optional[str] = Field(default=None, max_length=500)
 
 
 class GunUpdate(SQLModel):
@@ -16,6 +17,7 @@ class GunUpdate(SQLModel):
     caliber: Optional[str] = Field(default=None, max_length=20)
     type: Optional[str] = Field(default=None, max_length=50)
     notes: Optional[str] = Field(default=None, max_length=500)
+    image_path: Optional[str] = Field(default=None, max_length=500)
 
 
 class Gun(GunBase, table=True):
