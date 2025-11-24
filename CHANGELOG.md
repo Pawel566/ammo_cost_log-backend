@@ -1,6 +1,6 @@
 # Changelog
 
-## [0.3.8] – 2025-01-XX
+## [0.3.8] – 2025-01-24
 ### Dodano
 - Rozszerzone ustawienia użytkownika w modelu UserSettings:
   - `maintenance_rounds_limit` - limit strzałów do konserwacji (domyślnie 500)
