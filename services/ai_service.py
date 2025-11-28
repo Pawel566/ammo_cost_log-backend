@@ -115,23 +115,21 @@ class AIService:
             gun_info = ", ".join(gun_details)
 
             # Finalny, zoptymalizowany prompt
-            prompt = f"""
-Oceń tę sesję strzelecką w maksymalnie 200 słowach.
+prompt = f"""
+Oceń tę sesję strzelecką w maksymalnie 120 słowach (3–5 zdań).
 
 Dane sesji:
 - Broń: {gun_info}
 - Dystans: {distance_m} m
-- Trafienia: {hits}/{shots}
 - Celność: {accuracy:.1f}%
 
 {tone_instruction}
 
-WAŻNE: W swoim komentarzu UWZGLĘDNIJ informacje o broni (typ, kaliber, charakterystyka). 
-Oceń czy wynik jest odpowiedni dla tego typu broni i dystansu. 
-Uwzględnij specyfikę broni w ocenie (np. pistolet vs karabinek, kaliber, typ).
+Uwzględnij charakterystykę broni (typ, kaliber, zachowanie przy strzale) oraz wpływ dystansu na wynik.
+Podaj ocenę ogólną, najważniejszą obserwację i jedną sugestię poprawy lub pochwałę.
 
-Podaj krótką ocenę ogólną, najważniejszą obserwację związaną z bronią i wynikami, oraz jedną sugestię poprawy lub pochwałę.
-Styl: rzeczowy, techniczny, w języku polskim.
+Jeśli zbliżasz się do limitu długości — zakończ zdanie podsumowaniem.
+Styl: techniczny, konkretny, po polsku.
 """
 
             logger.debug(f"Wysyłanie żądania do OpenAI z modelem gpt-4o-mini")
@@ -150,7 +148,7 @@ Styl: rzeczowy, techniczny, w języku polskim.
                         },
                         {"role": "user", "content": prompt}
                     ],
-                    max_tokens=200,
+                    max_tokens=250,
                     temperature=0.5,
                     timeout=30.0
                 )
