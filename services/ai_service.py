@@ -137,7 +137,7 @@ Styl: techniczny, konkretny, po polsku.
             # Wywołaj OpenAI w osobnym wątku, aby nie blokować event loop
             def _call_openai():
                 return client.chat.completions.create(
-                    model="gpt-5-mini",
+                    model="gpt-4o-mini",
                     messages=[
                         {
                             "role": "system",
