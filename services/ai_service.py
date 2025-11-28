@@ -143,7 +143,7 @@ Styl: rzeczowy, techniczny, w języku polskim.
                         },
                         {"role": "user", "content": prompt}
                     ],
-                    max_tokens=120,
+                    max_tokens=200,
                     temperature=0.5,
                     timeout=30.0
                 )
