@@ -115,7 +115,7 @@ class AIService:
             gun_info = ", ".join(gun_details)
 
             # Finalny, zoptymalizowany prompt
-prompt = f"""
+            prompt = f"""
 Oceń tę sesję strzelecką w maksymalnie 120 słowach (3–5 zdań).
 
 Dane sesji:
@@ -137,7 +137,7 @@ Styl: techniczny, konkretny, po polsku.
             # Wywołaj OpenAI w osobnym wątku, aby nie blokować event loop
             def _call_openai():
                 return client.chat.completions.create(
-                    model="gpt-4o-mini",
+                    model="gpt-5-mini",
                     messages=[
                         {
                             "role": "system",
