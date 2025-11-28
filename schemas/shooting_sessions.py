@@ -12,6 +12,7 @@ class ShootingSessionCreate(BaseModel):
     notes: Optional[str] = None
     distance_m: Optional[float] = Field(default=None, gt=0)
     hits: Optional[int] = Field(default=None, ge=0)
+    session_type: Optional[str] = Field(default='standard', max_length=20)  # 'standard' or 'advanced'
 
 
 class ShootingSessionUpdate(BaseModel):
@@ -23,6 +24,7 @@ class ShootingSessionUpdate(BaseModel):
     distance_m: Optional[float] = Field(default=None, gt=0)
     cost: Optional[float] = Field(default=None, ge=0)
     notes: Optional[str] = None
+    session_type: Optional[str] = Field(default=None, max_length=20)  # 'standard' or 'advanced'
 
 
 class ShootingSessionRead(BaseModel):
@@ -37,6 +39,7 @@ class ShootingSessionRead(BaseModel):
     hits: Optional[int] = Field(default=None, ge=0)
     accuracy_percent: Optional[float] = Field(default=None, ge=0, le=100)
     ai_comment: Optional[str] = None
+    session_type: Optional[str] = Field(default='standard', max_length=20)
     user_id: Optional[str] = None
     expires_at: Optional[datetime] = None
 

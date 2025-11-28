@@ -229,6 +229,7 @@ class ShootingSessionsService:
             hits=data.hits if data.hits is not None else None,
             accuracy_percent=accuracy_percent,
             ai_comment=None,
+            session_type=data.session_type if hasattr(data, 'session_type') and data.session_type else 'standard',
             user_id=gun.user_id,
             expires_at=target_expiration
         )

@@ -67,6 +67,7 @@ async def get_all_sessions(
             hits=s.hits,
             accuracy_percent=s.accuracy_percent,
             ai_comment=s.ai_comment,
+            session_type=s.session_type if hasattr(s, 'session_type') else 'standard',
             user_id=s.user_id,
             expires_at=s.expires_at
         )
@@ -119,6 +120,7 @@ async def get_shooting_session(
         hits=ss.hits,
         accuracy_percent=ss.accuracy_percent,
         ai_comment=ss.ai_comment,
+        session_type=ss.session_type if hasattr(ss, 'session_type') else 'standard',
         user_id=ss.user_id,
         expires_at=ss.expires_at
     )
