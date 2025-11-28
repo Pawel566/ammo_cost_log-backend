@@ -104,18 +104,21 @@ class AIService:
             # Ustal ton wypowiedzi (skill_level + accuracy)
             tone_instruction = AIService._get_skill_level_tone(skill_level, accuracy)
 
-            # Dane o broni
-            gun_info = gun.name
-            if gun.caliber:
-                gun_info += f" kaliber {gun.caliber}"
+            # Dane o broni - buduj szczegółowy opis
+            gun_details = []
+            gun_details.append(f"Nazwa: {gun.name}")
             if gun.type:
-                gun_info += f" ({gun.type})"
+                gun_details.append(f"Typ: {gun.type}")
+            if gun.caliber:
+                gun_details.append(f"Kaliber: {gun.caliber}")
+            
+            gun_info = ", ".join(gun_details)
 
             # Finalny, zoptymalizowany prompt
             prompt = f"""
-Oceń tę sesję strzelecką w maksymalnie 100 słowach.
+Oceń tę sesję strzelecką w maksymalnie 200 słowach.
 
-Dane:
+Dane sesji:
 - Broń: {gun_info}
 - Dystans: {distance_m} m
 - Trafienia: {hits}/{shots}
@@ -123,7 +126,11 @@ Dane:
 
 {tone_instruction}
 
-Podaj krótką ocenę ogólną, najważniejszą obserwację oraz jedną sugestię poprawy lub pochwałę.
+WAŻNE: W swoim komentarzu UWZGLĘDNIJ informacje o broni (typ, kaliber, charakterystyka). 
+Oceń czy wynik jest odpowiedni dla tego typu broni i dystansu. 
+Uwzględnij specyfikę broni w ocenie (np. pistolet vs karabinek, kaliber, typ).
+
+Podaj krótką ocenę ogólną, najważniejszą obserwację związaną z bronią i wynikami, oraz jedną sugestię poprawy lub pochwałę.
 Styl: rzeczowy, techniczny, w języku polskim.
 """
 
