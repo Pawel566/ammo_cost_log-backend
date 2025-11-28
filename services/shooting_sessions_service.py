@@ -467,11 +467,6 @@ class ShootingSessionsService:
                 if ss.expires_at and ss.expires_at <= datetime.utcnow():
                     raise HTTPException(status_code=404, detail="Session not found")
 
-        ammo = ShootingSessionsService._get_ammo(session, ss.ammo_id, user)
-        if ammo and ammo.units_in_package is not None:
-            ammo.units_in_package += ss.shots
-            session.add(ammo)
-
         session.delete(ss)
         session.commit()
 
