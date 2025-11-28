@@ -4,6 +4,7 @@ from models import Gun
 from settings import settings
 from services.error_handler import ErrorHandler
 import logging
+import asyncio
 
 logger = logging.getLogger(__name__)
 
@@ -89,9 +90,15 @@ class AIService:
             api_key = settings.openai_api_key
 
         if not api_key:
+            logger.error("Brak klucza API OpenAI w ustawieniach")
             return "Brak klucza API OpenAI. Skonfiguruj OPENAI_API_KEY."
 
+        if len(api_key.strip()) < 10:
+            logger.error("Klucz API OpenAI jest zbyt krótki")
+            return "Błąd podczas generowania komentarza: Nieprawidłowy klucz API OpenAI"
+
         try:
+            logger.info(f"Próba wygenerowania komentarza AI dla broni {gun.name}, celność: {accuracy:.1f}%")
             client = OpenAI(api_key=api_key)
 
             # Ustal ton wypowiedzi (skill_level + accuracy)
@@ -120,25 +127,48 @@ Podaj krótką ocenę ogólną, najważniejszą obserwację oraz jedną sugesti�
 Styl: rzeczowy, techniczny, w języku polskim.
 """
 
-            response = client.chat.completions.create(
-                model="gpt-4o-mini",
-                messages=[
-                    {
-                        "role": "system",
-                        "content": (
-                            "Jesteś instruktorem strzelectwa. Oceniasz wyniki krótko, "
-                            "rzeczowo i profesjonalnie — ton dopasowany do poziomu użytkownika."
-                        )
-                    },
-                    {"role": "user", "content": prompt}
-                ],
-                max_tokens=120,
-                temperature=0.5
-            )
+            logger.debug(f"Wysyłanie żądania do OpenAI z modelem gpt-4o-mini")
+            
+            # Wywołaj OpenAI w osobnym wątku, aby nie blokować event loop
+            def _call_openai():
+                return client.chat.completions.create(
+                    model="gpt-4o-mini",
+                    messages=[
+                        {
+                            "role": "system",
+                            "content": (
+                                "Jesteś instruktorem strzelectwa. Oceniasz wyniki krótko, "
+                                "rzeczowo i profesjonalnie — ton dopasowany do poziomu użytkownika."
+                            )
+                        },
+                        {"role": "user", "content": prompt}
+                    ],
+                    max_tokens=120,
+                    temperature=0.5,
+                    timeout=30.0
+                )
+            
+            response = await asyncio.to_thread(_call_openai)
+            logger.debug(f"Otrzymano odpowiedź z OpenAI: {response.choices[0].message.content[:50] if response.choices else 'brak'}")
 
-            return response.choices[0].message.content.strip()
+            # Sprawdź czy odpowiedź jest poprawna
+            if not response or not response.choices or len(response.choices) == 0:
+                logger.error("OpenAI zwróciło pustą odpowiedź")
+                return "Błąd podczas generowania komentarza: Pusta odpowiedź z OpenAI"
+            
+            message = response.choices[0].message
+            if not message or not message.content:
+                logger.error("OpenAI zwróciło odpowiedź bez treści")
+                return "Błąd podczas generowania komentarza: Brak treści w odpowiedzi OpenAI"
+            
+            content = message.content.strip()
+            if not content:
+                logger.error("OpenAI zwróciło pustą treść")
+                return "Błąd podczas generowania komentarza: Pusta treść w odpowiedzi OpenAI"
+            
+            return content
 
         except Exception as e:
             error_msg = ErrorHandler.handle_openai_error(e, "generowanie komentarza AI")
-            logger.error(f"Błąd AI: {e}", exc_info=True)
+            logger.error(f"Błąd AI: {type(e).__name__}: {str(e)}", exc_info=True)
             return f"Błąd podczas generowania komentarza: {error_msg}"
