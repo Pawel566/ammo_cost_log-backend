@@ -112,7 +112,7 @@ Dane sesji:
 
 {tone_instruction}
 
-Wygeneruj krótki, konkretny komentarz (maksymalnie 200 słów) analizujący te wyniki. 
+Wygeneruj krótki, konkretny komentarz (maksymalnie 100 słów) analizujący te wyniki. 
 Komentarz powinien być w języku polskim i uwzględniać:
 1. Ogólną ocenę wyników
 2. Konkretne obserwacje dotyczące celności
@@ -127,7 +127,7 @@ Bądź konkretny i użyj terminologii strzeleckiej odpowiedniej do poziomu zaawa
                     {"role": "system", "content": "Jesteś ekspertem strzeleckim z wieloletnim doświadczeniem. Analizujesz wyniki strzeleckie i udzielasz konstruktywnych porad."},
                     {"role": "user", "content": prompt}
                 ],
-                max_tokens=300,
+                max_tokens=100,
                 temperature=0.7
             )
             
