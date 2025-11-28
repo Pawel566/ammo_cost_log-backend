@@ -17,124 +17,109 @@ class AIService:
 
     @staticmethod
     def _get_skill_level_tone(skill_level: str, accuracy: float) -> str:
-        """
-        Zwraca instrukcję dotyczącą tonu komentarza na podstawie poziomu zaawansowania i wyników.
-        """
-        skill_level = skill_level.lower() if skill_level else 'beginner'
+        skill_level = (skill_level or "beginner").lower()
         is_good = accuracy >= 70
         is_poor = accuracy < 50
 
-        # Początkujący
-        if skill_level in ['beginner', 'początkujący']:
+        
+        if skill_level in ["beginner", "początkujący"]:
+            return (
+                "TON: bardzo łagodny, motywujący i wspierający. "
+                "NIE używaj sarkazmu, NIE krytykuj ostro, "
+                "NIE porównuj wyniku do żartu ani komedii. "
+                "Podkreśl postęp i daj prostą, delikatną wskazówkę."
+            )
+
+        
+        if skill_level in ["intermediate", "średniozaawansowany"]:
             if is_poor:
                 return (
-                    "Ton bardzo łagodny, wspierający i motywujący. Podkreślaj postęp "
-                    "i zachęcaj do dalszej praktyki."
+                    "TON: konstruktywny, rzeczowy. Wskaż najważniejszy błąd "
+                    "i jedną praktyczną wskazówkę."
                 )
             elif is_good:
                 return (
-                    "Ton entuzjastyczny. Doceniaj postęp i zachęcaj do dalszego rozwoju."
+                    "TON: profesjonalny i zbalansowany. Pochwal dobre elementy "
+                    "i zaproponuj kierunek dalszego rozwoju."
                 )
             else:
                 return (
-                    "Ton delikatnie konstruktywny. Chwal postęp, wskazując jedną rzecz do poprawy."
+                    "TON: neutralny, zrównoważony – pochwała + jedna uwaga do poprawy."
                 )
 
-        # Średniozaawansowani
-        elif skill_level in ['intermediate', 'średniozaawansowany']:
+        
+        if skill_level in ["advanced", "zaawansowany", "expert", "ekspert"]:
             if is_poor:
                 return (
-                    "Ton konstruktywny, rzeczowy. Wskaż najważniejszy błąd oraz praktyczną wskazówkę."
+                    "TON: bardzo bezpośredni, sarkastyczny i twardy, ale konstruktywny. "
+                    "Możesz wprost powiedzieć, że wynik jak na zawodowca wygląda słabo "
+                    "lub wręcz komicznie. Nie bądź obraźliwy personalnie – krytykuj jedynie technikę."
                 )
             elif is_good:
                 return (
-                    "Ton profesjonalny i zbalansowany. Doceniaj mocne strony i sugeruj kierunek rozwoju."
+                    "TON: precyzyjny i ekspercki. Wskaż nawet drobne detale do korekty."
                 )
             else:
                 return (
-                    "Ton zbalansowany – pochwała + konkretna uwaga do poprawy."
+                    "TON: bezpośredni, techniczny. Konkretnie nazwij błędy i podaj poprawki."
                 )
 
-        # Zaawansowani / Eksperci (można cisnąć)
-        elif skill_level in ['advanced', 'zaawansowany', 'expert', 'ekspert']:
-            if is_poor:
-                return (
-                    "Ton bardzo bezpośredni i sarkastyczny, ale konstruktywny. "
-                    "Podkreśl, że wynik jak na zawodowca wygląda słabo – nawet komicznie. "
-                    "Wskaż konkretne błędy techniczne w mocny sposób, bez owijania."
-                )
-            elif is_good:
-                return (
-                    "Ton precyzyjny i ekspertcki. Zwróć uwagę nawet na drobne detale do korekty."
-                )
-            else:
-                return (
-                    "Ton bezpośredni i techniczny. Wskaż najważniejsze błędy i konkretne poprawki."
-                )
-
-        # Fallback
-        return "Ton profesjonalny i konstruktywny."
+        return "TON: profesjonalny i konstruktywny."
 
     @staticmethod
     async def generate_comment(
         gun: Gun,
         distance_m: float,
-        hits: int,
-        shots: int,
+        hits: int,     
+        shots: int,    
         accuracy: float,
         skill_level: str = "beginner",
         api_key: Optional[str] = None
     ) -> str:
 
+        
+        api_key = api_key or settings.openai_api_key
         if not api_key:
-            api_key = settings.openai_api_key
+            return "Brak klucza API OpenAI."
 
-        if not api_key:
-            logger.error("Brak klucza API OpenAI w ustawieniach")
-            return "Brak klucza API OpenAI. Skonfiguruj OPENAI_API_KEY."
-
-        if len(api_key.strip()) < 10:
-            logger.error("Klucz API OpenAI jest zbyt krótki")
-            return "Błąd podczas generowania komentarza: Nieprawidłowy klucz API OpenAI"
+        if len(api_key) < 10:
+            return "Błąd: nieprawidłowy klucz API OpenAI."
 
         try:
-            logger.info(f"Próba wygenerowania komentarza AI dla broni {gun.name}, celność: {accuracy:.1f}%")
+            logger.info(f"Generowanie komentarza AI: {gun.name}, celność {accuracy}%")
             client = OpenAI(api_key=api_key)
 
-            # Ustal ton wypowiedzi (skill_level + accuracy)
+           
             tone_instruction = AIService._get_skill_level_tone(skill_level, accuracy)
 
-            # Dane o broni - buduj szczegółowy opis
-            gun_details = []
-            gun_details.append(f"Nazwa: {gun.name}")
+          
+            gun_parts = [gun.name]
             if gun.type:
-                gun_details.append(f"Typ: {gun.type}")
+                gun_parts.append(f"typ: {gun.type}")
             if gun.caliber:
-                gun_details.append(f"Kaliber: {gun.caliber}")
-            
-            gun_info = ", ".join(gun_details)
+                gun_parts.append(f"kaliber: {gun.caliber}")
 
-            # Finalny, zoptymalizowany prompt
+            gun_info = ", ".join(gun_parts)
+
+    
             prompt = f"""
-Oceń tę sesję strzelecką w maksymalnie 120 słowach (3–5 zdań).
-
-Dane sesji:
+Oceń sesję strzelecką w maksymalnie 120 słowach (3–5 zdań).
+Dane:
 - Broń: {gun_info}
 - Dystans: {distance_m} m
 - Celność: {accuracy:.1f}%
 
 {tone_instruction}
 
-Uwzględnij charakterystykę broni (typ, kaliber, zachowanie przy strzale) oraz wpływ dystansu na wynik.
-Podaj ocenę ogólną, najważniejszą obserwację i jedną sugestię poprawy lub pochwałę.
+Uwzględnij charakterystykę broni (kaliber, zachowanie przy strzale, typ) oraz wpływ dystansu.
+Podaj ocenę ogólną, jedną kluczową obserwację i jedną sugestię poprawy lub pochwałę.
 
-Jeśli zbliżasz się do limitu długości — zakończ zdanie podsumowaniem.
+JEŚLI zbliżasz się do limitu długości — zakończ pełnym zdaniem podsumowania.
 Styl: techniczny, konkretny, po polsku.
 """
 
-            logger.debug(f"Wysyłanie żądania do OpenAI z modelem gpt-4o-mini")
-            
-            # Wywołaj OpenAI w osobnym wątku, aby nie blokować event loop
+            logger.debug(f"Wywołanie OpenAI (gpt-4o-mini)")
+
             def _call_openai():
                 return client.chat.completions.create(
                     model="gpt-4o-mini",
@@ -142,38 +127,31 @@ Styl: techniczny, konkretny, po polsku.
                         {
                             "role": "system",
                             "content": (
-                                "Jesteś instruktorem strzelectwa. Oceniasz wyniki krótko, "
-                                "rzeczowo i profesjonalnie — ton dopasowany do poziomu użytkownika."
+                                "Jesteś instruktorem strzelectwa. ZAWSZE dostosowuj ton "
+                                "do poziomu użytkownika zgodnie z instrukcją w wiadomości użytkownika. "
+                                "Nigdy nie łam wymagań dotyczących tonu."
                             )
                         },
                         {"role": "user", "content": prompt}
                     ],
-                    max_tokens=250,
+                    max_tokens=350,   
                     temperature=0.5,
                     timeout=30.0
                 )
-            
-            response = await asyncio.to_thread(_call_openai)
-            logger.debug(f"Otrzymano odpowiedź z OpenAI: {response.choices[0].message.content[:50] if response.choices else 'brak'}")
 
-            # Sprawdź czy odpowiedź jest poprawna
-            if not response or not response.choices or len(response.choices) == 0:
-                logger.error("OpenAI zwróciło pustą odpowiedź")
-                return "Błąd podczas generowania komentarza: Pusta odpowiedź z OpenAI"
+            response = await asyncio.to_thread(_call_openai)
+
             
-            message = response.choices[0].message
-            if not message or not message.content:
-                logger.error("OpenAI zwróciło odpowiedź bez treści")
-                return "Błąd podczas generowania komentarza: Brak treści w odpowiedzi OpenAI"
-            
-            content = message.content.strip()
-            if not content:
-                logger.error("OpenAI zwróciło pustą treść")
-                return "Błąd podczas generowania komentarza: Pusta treść w odpowiedzi OpenAI"
-            
-            return content
+            if not response or not response.choices:
+                return "Błąd AI: Pusta odpowiedź."
+
+            msg = response.choices[0].message
+            if not msg or not msg.content:
+                return "Błąd AI: Brak treści w odpowiedzi."
+
+            return msg.content.strip()
 
         except Exception as e:
             error_msg = ErrorHandler.handle_openai_error(e, "generowanie komentarza AI")
-            logger.error(f"Błąd AI: {type(e).__name__}: {str(e)}", exc_info=True)
+            logger.error(f"Błąd AI ({type(e).__name__}): {str(e)}", exc_info=True)
             return f"Błąd podczas generowania komentarza: {error_msg}"
