@@ -1,14 +1,16 @@
 from fastapi import APIRouter, HTTPException, Depends, Query
-from sqlmodel import Session
-from models import ShootingSession
+from sqlmodel import Session, select
+from models import ShootingSession, User, Gun
 from schemas.shooting_sessions import ShootingSessionRead, ShootingSessionCreate, ShootingSessionUpdate, MonthlySummary
 from schemas.pagination import PaginatedResponse
 from database import get_session
 from routers.auth import role_required
 from services.user_context import UserContext, UserRole
 from services.shooting_sessions_service import ShootingSessionsService
+from services.ai_service import AIService
 from datetime import datetime
 from typing import Optional, Dict, Any
+import asyncio
 
 router = APIRouter(prefix="/shooting-sessions", tags=["Shooting Sessions"])
 
@@ -89,6 +91,76 @@ async def get_monthly_summary(
         "limit": limit,
         "offset": offset
     }
+
+
+@router.post("/{session_id}/generate-ai-comment", response_model=Dict[str, str])
+async def generate_ai_comment(
+    session_id: str,
+    session: Session = Depends(get_session),
+    user: UserContext = Depends(role_required([UserRole.user, UserRole.admin]))
+):
+    """
+    Generuje komentarz AI dla sesji strzeleckiej.
+    Wymaga danych celności (distance_m, hits, shots) oraz klucza OpenAI API.
+    """
+    if user.is_guest:
+        raise HTTPException(status_code=403, detail="Goście nie mogą generować komentarzy AI")
+    
+    # Pobierz sesję
+    ss = session.get(ShootingSession, session_id)
+    if not ss:
+        raise HTTPException(status_code=404, detail="Sesja nie została znaleziona")
+    
+    if user.role != UserRole.admin:
+        if ss.user_id != user.user_id:
+            raise HTTPException(status_code=404, detail="Sesja nie została znaleziona")
+    
+    # Sprawdź czy sesja ma wymagane dane do analizy
+    if not ss.distance_m or ss.hits is None or not ss.shots or ss.shots == 0:
+        raise HTTPException(
+            status_code=400, 
+            detail="Sesja musi zawierać dystans, liczbę trafień i strzałów, aby wygenerować komentarz AI"
+        )
+    
+    if not ss.accuracy_percent:
+        raise HTTPException(
+            status_code=400,
+            detail="Nie można obliczyć celności. Sprawdź dane sesji."
+        )
+    
+    # Pobierz broń
+    gun = session.get(Gun, ss.gun_id)
+    if not gun:
+        raise HTTPException(status_code=404, detail="Broń nie została znaleziona")
+    
+    # Pobierz skill_level użytkownika
+    def _get_skill_level(db_session: Session):
+        query_user = select(User).where(User.user_id == user.user_id)
+        user_record = db_session.exec(query_user).first()
+        return user_record.skill_level if user_record else "beginner"
+    
+    skill_level = await asyncio.to_thread(_get_skill_level, session)
+    
+    # Wygeneruj komentarz AI
+    try:
+        ai_comment = await AIService.generate_comment(
+            gun=gun,
+            distance_m=ss.distance_m,
+            hits=ss.hits,
+            shots=ss.shots,
+            accuracy=ss.accuracy_percent,
+            skill_level=skill_level
+        )
+        
+        # Zapisz komentarz w sesji
+        ss.ai_comment = ai_comment
+        session.add(ss)
+        await asyncio.to_thread(session.commit)
+        await asyncio.to_thread(session.refresh, ss)
+        
+        return {"ai_comment": ai_comment}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Błąd podczas generowania komentarza AI: {str(e)}")
 
 
 @router.get("/{session_id}", response_model=ShootingSessionRead)
