@@ -10,53 +10,70 @@ logger = logging.getLogger(__name__)
 
 class AIService:
     """
-    Serwis do generowania komentarzy AI na podstawie wyników strzeleckich.
-    Uwzględnia poziom zaawansowania użytkownika (skill_level) do dostosowania tonu komentarza.
+    Serwis generujący krótki komentarz AI na podstawie wyników strzeleckich.
+    Uwzględnia poziom zaawansowania użytkownika (skill_level).
     """
-    
+
     @staticmethod
     def _get_skill_level_tone(skill_level: str, accuracy: float) -> str:
         """
         Zwraca instrukcję dotyczącą tonu komentarza na podstawie poziomu zaawansowania i wyników.
-        
-        Args:
-            skill_level: Poziom zaawansowania użytkownika ('beginner', 'intermediate', 'advanced', 'expert')
-            accuracy: Procent celności (0-100)
-        
-        Returns:
-            Instrukcja dla AI dotycząca tonu komentarza
         """
         skill_level = skill_level.lower() if skill_level else 'beginner'
-        is_good_result = accuracy >= 70
-        is_poor_result = accuracy < 50
-        
+        is_good = accuracy >= 70
+        is_poor = accuracy < 50
+
+        # Początkujący
         if skill_level in ['beginner', 'początkujący']:
-            if is_poor_result:
-                return "Bądź bardzo łagodny, wspierający i motywujący. Używaj pozytywnego języka, podkreślaj postęp i zachęcaj do dalszej praktyki."
-            elif is_good_result:
-                return "Bądź entuzjastyczny i gratuluj dobrych wyników. Podkreślaj postęp i zachęcaj do kontynuacji."
+            if is_poor:
+                return (
+                    "Ton bardzo łagodny, wspierający i motywujący. Podkreślaj postęp "
+                    "i zachęcaj do dalszej praktyki."
+                )
+            elif is_good:
+                return (
+                    "Ton entuzjastyczny. Doceniaj postęp i zachęcaj do dalszego rozwoju."
+                )
             else:
-                return "Bądź wspierający i konstruktywny. Wskaż obszary do poprawy w delikatny sposób."
-        
+                return (
+                    "Ton delikatnie konstruktywny. Chwal postęp, wskazując jedną rzecz do poprawy."
+                )
+
+        # Średniozaawansowani
         elif skill_level in ['intermediate', 'średniozaawansowany']:
-            if is_poor_result:
-                return "Bądź konstruktywny i pomocny. Wskaż konkretne obszary do poprawy, ale w sposób wspierający."
-            elif is_good_result:
-                return "Bądź profesjonalny i doceniaj wyniki. Wskaż mocne strony i sugestie dalszego rozwoju."
+            if is_poor:
+                return (
+                    "Ton konstruktywny, rzeczowy. Wskaż najważniejszy błąd oraz praktyczną wskazówkę."
+                )
+            elif is_good:
+                return (
+                    "Ton profesjonalny i zbalansowany. Doceniaj mocne strony i sugeruj kierunek rozwoju."
+                )
             else:
-                return "Bądź zbalansowany - doceniaj postęp i wskazuj obszary do poprawy."
-        
+                return (
+                    "Ton zbalansowany – pochwała + konkretna uwaga do poprawy."
+                )
+
+        # Zaawansowani / Eksperci (można cisnąć)
         elif skill_level in ['advanced', 'zaawansowany', 'expert', 'ekspert']:
-            if is_poor_result:
-                return "Możesz być bardziej bezpośredni i szczery. Możesz delikatnie żartować lub lekko szydzić, ale w sposób konstruktywny. Użyj humoru, ale nie bądź złośliwy."
-            elif is_good_result:
-                return "Bądź profesjonalny i precyzyjny w analizie. Wskaż nawet drobne szczegóły do poprawy, ponieważ użytkownik jest zaawansowany."
+            if is_poor:
+                return (
+                    "Ton bardzo bezpośredni i sarkastyczny, ale konstruktywny. "
+                    "Podkreśl, że wynik jak na zawodowca wygląda słabo – nawet komicznie. "
+                    "Wskaż konkretne błędy techniczne w mocny sposób, bez owijania."
+                )
+            elif is_good:
+                return (
+                    "Ton precyzyjny i ekspertcki. Zwróć uwagę nawet na drobne detale do korekty."
+                )
             else:
-                return "Bądź bezpośredni i konstruktywny. Wskaż konkretne błędy i sposoby ich poprawy."
-        
-        # Domyślnie dla nieznanego poziomu
-        return "Bądź profesjonalny i konstruktywny."
-    
+                return (
+                    "Ton bezpośredni i techniczny. Wskaż najważniejsze błędy i konkretne poprawki."
+                )
+
+        # Fallback
+        return "Ton profesjonalny i konstruktywny."
+
     @staticmethod
     async def generate_comment(
         gun: Gun,
@@ -67,77 +84,61 @@ class AIService:
         skill_level: str = "beginner",
         api_key: Optional[str] = None
     ) -> str:
-        """
-        Generuje komentarz AI na podstawie wyników strzeleckich.
-        
-        Args:
-            gun: Obiekt broni
-            distance_m: Dystans w metrach
-            hits: Liczba trafień
-            shots: Liczba strzałów
-            accuracy: Procent celności (0-100)
-            skill_level: Poziom zaawansowania użytkownika
-            api_key: Klucz API OpenAI (opcjonalny, jeśli None używa z settings)
-        
-        Returns:
-            Wygenerowany komentarz AI
-        """
+
         if not api_key:
             api_key = settings.openai_api_key
-        
+
         if not api_key:
-            return "Brak klucza API OpenAI. Skonfiguruj OPENAI_API_KEY w zmiennych środowiskowych."
-        
+            return "Brak klucza API OpenAI. Skonfiguruj OPENAI_API_KEY."
+
         try:
             client = OpenAI(api_key=api_key)
-            
-            # Określ ton komentarza na podstawie poziomu zaawansowania
+
+            # Ustal ton wypowiedzi (skill_level + accuracy)
             tone_instruction = AIService._get_skill_level_tone(skill_level, accuracy)
-            
-            # Przygotuj informacje o broni
-            gun_info = f"{gun.name}"
+
+            # Dane o broni
+            gun_info = gun.name
             if gun.caliber:
                 gun_info += f" kaliber {gun.caliber}"
             if gun.type:
                 gun_info += f" ({gun.type})"
-            
-            # Przygotuj prompt
-            prompt = f"""Jesteś ekspertem strzeleckim analizującym wyniki sesji strzeleckiej.
 
-Dane sesji:
+            # Finalny, zoptymalizowany prompt
+            prompt = f"""
+Oceń tę sesję strzelecką w maksymalnie 100 słowach.
+
+Dane:
 - Broń: {gun_info}
-- Dystans: {distance_m} metrów
-- Wyniki: {hits} trafień z {shots} strzałów
+- Dystans: {distance_m} m
+- Trafienia: {hits}/{shots}
 - Celność: {accuracy:.1f}%
 
 {tone_instruction}
 
-Wygeneruj krótki, konkretny komentarz (maksymalnie 100 słów) analizujący te wyniki. 
-Komentarz powinien być w języku polskim i uwzględniać:
-1. Ogólną ocenę wyników
-2. Konkretne obserwacje dotyczące celności
-3. Konstruktywne sugestie poprawy (jeśli potrzebne)
-4. Pozytywne wzmocnienie (jeśli wyniki są dobre)
-
-Bądź konkretny i użyj terminologii strzeleckiej odpowiedniej do poziomu zaawansowania użytkownika."""
+Podaj krótką ocenę ogólną, najważniejszą obserwację oraz jedną sugestię poprawy lub pochwałę.
+Styl: rzeczowy, techniczny, w języku polskim.
+"""
 
             response = client.chat.completions.create(
-                model="gpt-4o-mini",
+                model="gpt-5-mini",
                 messages=[
-                    {"role": "system", "content": "Jesteś ekspertem strzeleckim z wieloletnim doświadczeniem. Analizujesz wyniki strzeleckie i udzielasz konstruktywnych porad."},
+                    {
+                        "role": "system",
+                        "content": (
+                            "Jesteś instruktorem strzelectwa. Oceniasz wyniki krótko, "
+                            "rzeczowo i profesjonalnie — ton dopasowany do poziomu użytkownika."
+                        )
+                    },
                     {"role": "user", "content": prompt}
                 ],
-                max_tokens=100,
-                temperature=0.7
+                max_tokens=120,
+                temperature=0.5
             )
-            
-            comment = response.choices[0].message.content.strip()
-            return comment
-            
+
+            return response.choices[0].message.content.strip()
+
         except Exception as e:
             error_msg = ErrorHandler.handle_openai_error(e, "generowanie komentarza AI")
-            logger.error(f"Błąd podczas generowania komentarza AI: {e}", exc_info=True)
+            logger.error(f"Błąd AI: {e}", exc_info=True)
             return f"Błąd podczas generowania komentarza: {error_msg}"
-
-
-
