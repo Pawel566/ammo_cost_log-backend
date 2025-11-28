@@ -121,7 +121,7 @@ Styl: rzeczowy, techniczny, w języku polskim.
 """
 
             response = client.chat.completions.create(
-                model="gpt-5-mini",
+                model="gpt-4o-mini",
                 messages=[
                     {
                         "role": "system",

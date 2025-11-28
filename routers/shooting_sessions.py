@@ -11,6 +11,9 @@ from services.ai_service import AIService
 from datetime import datetime
 from typing import Optional, Dict, Any
 import asyncio
+import logging
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/shooting-sessions", tags=["Shooting Sessions"])
 
@@ -152,6 +155,10 @@ async def generate_ai_comment(
             skill_level=skill_level
         )
         
+        # Sprawdź czy komentarz zawiera błąd
+        if ai_comment.startswith("Błąd podczas generowania komentarza") or ai_comment.startswith("Brak klucza API"):
+            raise HTTPException(status_code=500, detail=ai_comment)
+        
         # Zapisz komentarz w sesji
         ss.ai_comment = ai_comment
         session.add(ss)
@@ -159,7 +166,10 @@ async def generate_ai_comment(
         await asyncio.to_thread(session.refresh, ss)
         
         return {"ai_comment": ai_comment}
+    except HTTPException:
+        raise
     except Exception as e:
+        logger.error(f"Błąd podczas generowania komentarza AI: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Błąd podczas generowania komentarza AI: {str(e)}")
 
 
