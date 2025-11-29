@@ -2,6 +2,7 @@ from sqlmodel import Session, select
 
 from models.user import User
 from models.shooting_session import ShootingSession
+from services.shooting_sessions_service import SessionCalculationService
 
 ACCURACY_REQUIREMENTS = {
     "beginner": 75,
@@ -38,12 +39,21 @@ def count_passed_sessions(user: User, db: Session) -> int:
     statement = (
         select(ShootingSession)
         .where(
-            ShootingSession.user_id == user.user_id,
-            ShootingSession.accuracy_percent >= required_accuracy
+            ShootingSession.user_id == user.user_id
         )
     )
     sessions = db.exec(statement).all()
-    return len(sessions)
+    
+    passed_count = 0
+    for session in sessions:
+        accuracy = session.accuracy_percent
+        if accuracy is None and session.hits is not None and session.shots and session.shots > 0:
+            accuracy = SessionCalculationService.calculate_accuracy(session.hits, session.shots)
+        
+        if accuracy is not None and accuracy >= required_accuracy:
+            passed_count += 1
+    
+    return passed_count
 
 
 def get_rank_name(passed_sessions: int) -> str:
