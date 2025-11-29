@@ -43,10 +43,18 @@ async def create_shooting_session(
 ):
     result = await ShootingSessionsService.create_shooting_session(session, user, session_data)
     
-    # ⚡ Aktualizacja rangi
-    db_user = await asyncio.to_thread(lambda: session.get(User, user.user_id))
-    if db_user:
-        await asyncio.to_thread(lambda: update_user_rank(db_user, session))
+    # ⚡ Aktualizacja rangi - po commit sesji strzeleckiej
+    try:
+        query = select(User).where(User.user_id == user.user_id)
+        db_user = await asyncio.to_thread(lambda: session.exec(query).first())
+        if db_user:
+            logger.info(f"[RANK] Aktualizacja rangi dla użytkownika {user.user_id} po utworzeniu sesji. Sesja: shots={result['session'].shots}, hits={result['session'].hits}, accuracy={result['session'].accuracy_percent}")
+            updated_rank = await asyncio.to_thread(lambda: update_user_rank(db_user, session))
+            logger.info(f"[RANK] Zaktualizowana ranga: {updated_rank}")
+        else:
+            logger.warning(f"[RANK] Nie znaleziono użytkownika {user.user_id} w bazie")
+    except Exception as e:
+        logger.error(f"[RANK] Błąd podczas aktualizacji rangi: {str(e)}", exc_info=True)
     
     return {
         "id": result["session"].id,
@@ -307,10 +315,18 @@ async def update_session(
     result = await ShootingSessionsService.update_shooting_session(session, session_id, user, session_data)
     ss = result["session"]
     
-    # ⚡ Aktualizacja rangi
-    db_user = await asyncio.to_thread(lambda: session.get(User, user.user_id))
-    if db_user:
-        await asyncio.to_thread(lambda: update_user_rank(db_user, session))
+    # ⚡ Aktualizacja rangi - po aktualizacji sesji
+    try:
+        query = select(User).where(User.user_id == user.user_id)
+        db_user = await asyncio.to_thread(lambda: session.exec(query).first())
+        if db_user:
+            logger.info(f"[RANK] Aktualizacja rangi dla użytkownika {user.user_id} po aktualizacji sesji")
+            updated_rank = await asyncio.to_thread(lambda: update_user_rank(db_user, session))
+            logger.info(f"[RANK] Zaktualizowana ranga: {updated_rank}")
+        else:
+            logger.warning(f"[RANK] Nie znaleziono użytkownika {user.user_id} w bazie")
+    except Exception as e:
+        logger.error(f"[RANK] Błąd podczas aktualizacji rangi: {str(e)}", exc_info=True)
     
     return {
         "id": ss.id,
@@ -335,10 +351,18 @@ async def delete_session(
 ):
     result = await ShootingSessionsService.delete_shooting_session(session, session_id, user)
     
-    # ⚡ Aktualizacja rangi
-    db_user = await asyncio.to_thread(lambda: session.get(User, user.user_id))
-    if db_user:
-        await asyncio.to_thread(lambda: update_user_rank(db_user, session))
+    # ⚡ Aktualizacja rangi - po usunięciu sesji
+    try:
+        query = select(User).where(User.user_id == user.user_id)
+        db_user = await asyncio.to_thread(lambda: session.exec(query).first())
+        if db_user:
+            logger.info(f"[RANK] Aktualizacja rangi dla użytkownika {user.user_id} po usunięciu sesji")
+            updated_rank = await asyncio.to_thread(lambda: update_user_rank(db_user, session))
+            logger.info(f"[RANK] Zaktualizowana ranga: {updated_rank}")
+        else:
+            logger.warning(f"[RANK] Nie znaleziono użytkownika {user.user_id} w bazie")
+    except Exception as e:
+        logger.error(f"[RANK] Błąd podczas aktualizacji rangi: {str(e)}", exc_info=True)
     
     return result
 

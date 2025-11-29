@@ -64,12 +64,14 @@ def count_passed_sessions(user: User, db: Session) -> int:
     - sesja liczy się, jeśli accuracy >= wymagany próg dla skill_level.
     """
     required_accuracy = _get_required_accuracy(user.skill_level)
+    logger.info(f"[RANK] Liczenie zaliczonych sesji dla użytkownika {user.user_id}, skill_level={user.skill_level}, wymagana celność={required_accuracy}%")
 
     stmt = (
         select(ShootingSession)
         .where(ShootingSession.user_id == user.user_id)
     )
     sessions = db.exec(stmt).all()
+    logger.info(f"[RANK] Znaleziono {len(sessions)} sesji dla użytkownika {user.user_id}")
 
     passed_count = 0
 
@@ -80,10 +82,16 @@ def count_passed_sessions(user: User, db: Session) -> int:
         if accuracy is None:
             if s.hits is not None and s.shots is not None and s.shots > 0:
                 accuracy = SessionCalculationService.calculate_accuracy(s.hits, s.shots)
+                logger.debug(f"[RANK] Sesja {s.id}: obliczono accuracy={accuracy}% z hits={s.hits}, shots={s.shots}")
 
-        if accuracy is not None and accuracy >= required_accuracy:
-            passed_count += 1
+        if accuracy is not None:
+            logger.debug(f"[RANK] Sesja {s.id}: accuracy={accuracy}%, wymagana={required_accuracy}%, zaliczona={accuracy >= required_accuracy}")
+            if accuracy >= required_accuracy:
+                passed_count += 1
+        else:
+            logger.debug(f"[RANK] Sesja {s.id}: brak accuracy (hits={s.hits}, shots={s.shots}), pomijana")
 
+    logger.info(f"[RANK] Użytkownik {user.user_id}: {passed_count} zaliczonych sesji z {len(sessions)} wszystkich")
     return passed_count
 
 
