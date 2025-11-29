@@ -71,8 +71,15 @@ async def get_rank(
         from fastapi import HTTPException
         raise HTTPException(status_code=404, detail="Użytkownik nie znaleziony")
     
-    rank_info = await asyncio.to_thread(lambda: get_rank_info(user_record, session))
+    if not hasattr(user_record, 'rank') or user_record.rank is None:
+        user_record.rank = "Nowicjusz"
+        session.add(user_record)
+        await asyncio.to_thread(lambda: session.commit())
+        await asyncio.to_thread(lambda: session.refresh(user_record))
+    
     updated_rank = await asyncio.to_thread(lambda: update_user_rank(user_record, session))
+    await asyncio.to_thread(lambda: session.refresh(user_record))
+    rank_info = await asyncio.to_thread(lambda: get_rank_info(user_record, session))
     rank_info["rank"] = updated_rank
     return rank_info
 
