@@ -47,8 +47,10 @@ def count_passed_sessions(user: User, db: Session) -> int:
     passed_count = 0
     for session in sessions:
         accuracy = session.accuracy_percent
-        if accuracy is None and session.hits is not None and session.shots and session.shots > 0:
-            accuracy = SessionCalculationService.calculate_accuracy(session.hits, session.shots)
+        
+        if accuracy is None:
+            if session.hits is not None and session.shots is not None and session.shots > 0:
+                accuracy = SessionCalculationService.calculate_accuracy(session.hits, session.shots)
         
         if accuracy is not None and accuracy >= required_accuracy:
             passed_count += 1
