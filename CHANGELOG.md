@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.4.0] – 2025-01-XX
+### Zmieniono
+- Usunięto automatyczne zwracanie amunicji do magazynu przy usuwaniu sesji strzeleckiej
+- Przy edycji sesji amunicja jest zwracana/odejmowana tylko w przypadku zmiany liczby strzałów (różnica)
+
 ## [0.3.8] – 2025-01-24
 ### Dodano
 - Rozszerzone ustawienia użytkownika w modelu UserSettings:

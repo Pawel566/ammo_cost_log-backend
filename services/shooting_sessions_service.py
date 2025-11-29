@@ -229,6 +229,7 @@ class ShootingSessionsService:
             hits=data.hits if data.hits is not None else None,
             accuracy_percent=accuracy_percent,
             ai_comment=None,
+            session_type=data.session_type if hasattr(data, 'session_type') and data.session_type else 'standard',
             user_id=gun.user_id,
             expires_at=target_expiration
         )
@@ -465,11 +466,6 @@ class ShootingSessionsService:
             if user.is_guest:
                 if ss.expires_at and ss.expires_at <= datetime.utcnow():
                     raise HTTPException(status_code=404, detail="Session not found")
-
-        ammo = ShootingSessionsService._get_ammo(session, ss.ammo_id, user)
-        if ammo and ammo.units_in_package is not None:
-            ammo.units_in_package += ss.shots
-            session.add(ammo)
 
         session.delete(ss)
         session.commit()

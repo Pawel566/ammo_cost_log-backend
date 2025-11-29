@@ -18,7 +18,7 @@ try:
     from openai import RateLimitError as OpenAIRateLimitError
     from openai import APITimeoutError as OpenAITimeoutError
 except ImportError:
-    # Fallback dla różnych wersji biblioteki
+    
     OpenAIAPIError = None
     OpenAIAuthError = None
     OpenAIRateLimitError = None

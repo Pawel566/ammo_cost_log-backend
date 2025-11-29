@@ -14,6 +14,7 @@ class ShootingSessionBase(SQLModel):
     hits: Optional[int] = Field(default=None, ge=0)
     accuracy_percent: Optional[float] = Field(default=None, ge=0, le=100)
     ai_comment: Optional[str] = Field(default=None, max_length=1000)
+    session_type: Optional[str] = Field(default='standard', max_length=20)  # 'standard' or 'advanced'
 
 
 class ShootingSession(ShootingSessionBase, table=True):
