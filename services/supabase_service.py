@@ -155,5 +155,27 @@ def delete_target_image(path: str) -> None:
             raise
 
 
+def get_target_image_base64(path: str) -> str:
+    """
+    Get target image as base64 string for OpenAI Vision API.
+    
+    Args:
+        path: Storage path of the image
+    
+    Returns:
+        Base64 encoded image string
+    """
+    if not supabase:
+        raise ValueError("Supabase storage client not initialized")
+    
+    try:
+        response = supabase.storage.from_(TARGETS_BUCKET).download(path)
+        import base64
+        image_base64 = base64.b64encode(response).decode('utf-8')
+        return image_base64
+    except Exception as e:
+        raise ValueError(f"Failed to get target image: {str(e)}")
+
+
 
 
