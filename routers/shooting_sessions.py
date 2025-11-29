@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException, Depends, Query
+from fastapi import APIRouter, HTTPException, Depends, Query, UploadFile, File
 from sqlmodel import Session, select
 from models import ShootingSession, User, Gun
 from schemas.shooting_sessions import ShootingSessionRead, ShootingSessionCreate, ShootingSessionUpdate, MonthlySummary
@@ -12,6 +12,18 @@ from datetime import datetime
 from typing import Optional, Dict, Any
 import asyncio
 import logging
+
+try:
+    from services.supabase_service import upload_target_image, get_signed_target_url, delete_target_image, get_target_image_base64
+except ImportError:
+    def upload_target_image(*args, **kwargs):
+        raise ValueError("Supabase storage is not configured")
+    def get_signed_target_url(*args, **kwargs):
+        raise ValueError("Supabase storage is not configured")
+    def delete_target_image(*args, **kwargs):
+        raise ValueError("Supabase storage is not configured")
+    def get_target_image_base64(*args, **kwargs):
+        raise ValueError("Supabase storage is not configured")
 
 logger = logging.getLogger(__name__)
 
@@ -73,6 +85,7 @@ async def get_all_sessions(
             accuracy_percent=s.accuracy_percent,
             ai_comment=s.ai_comment,
             session_type=s.session_type if hasattr(s, 'session_type') else 'standard',
+            target_image_path=s.target_image_path if hasattr(s, 'target_image_path') else None,
             user_id=s.user_id,
             expires_at=s.expires_at
         )
@@ -96,7 +109,7 @@ async def get_monthly_summary(
     }
 
 
-@router.post("/{session_id}/generate-ai-comment", response_model=Dict[str, str])
+@router.post("/{session_id}/generate-ai-comment", response_model=Dict[str, Any])
 async def generate_ai_comment(
     session_id: str,
     session: Session = Depends(get_session),
@@ -104,7 +117,11 @@ async def generate_ai_comment(
 ):
     """
     Generuje komentarz AI dla sesji strzeleckiej.
-    Wymaga danych celności (distance_m, hits, shots) oraz klucza OpenAI API.
+    Wymaga: dystans, liczba strzałów, oraz (opcjonalnie) zdjęcie tarczy lub liczba trafień.
+    
+    Przypadek A: brak trafień + zdjęcie -> Vision liczy trafienia i analizuje
+    Przypadek B: trafienia + zdjęcie -> Vision tylko analizuje jakościowo
+    Przypadek C: trafienia bez zdjęcia -> tylko tekstowa analiza
     """
     if user.is_guest:
         raise HTTPException(status_code=403, detail="Goście nie mogą generować komentarzy AI")
@@ -118,17 +135,11 @@ async def generate_ai_comment(
         if ss.user_id != user.user_id:
             raise HTTPException(status_code=404, detail="Sesja nie została znaleziona")
     
-    # Sprawdź czy sesja ma wymagane dane do analizy
-    if not ss.distance_m or ss.hits is None or not ss.shots or ss.shots == 0:
+    # Wymagane: dystans i liczba strzałów
+    if not ss.distance_m or not ss.shots or ss.shots == 0:
         raise HTTPException(
             status_code=400, 
-            detail="Sesja musi zawierać dystans, liczbę trafień i strzałów, aby wygenerować komentarz AI"
-        )
-    
-    if not ss.accuracy_percent:
-        raise HTTPException(
-            status_code=400,
-            detail="Nie można obliczyć celności. Sprawdź dane sesji."
+            detail="Sesja musi zawierać dystans i liczbę strzałów, aby wygenerować komentarz AI"
         )
     
     # Pobierz broń
@@ -144,8 +155,78 @@ async def generate_ai_comment(
     
     skill_level = await asyncio.to_thread(_get_skill_level, session)
     
-    # Wygeneruj komentarz AI
+    # Sprawdź czy jest zdjęcie tarczy
+    target_image_base64 = None
+    if ss.target_image_path:
+        try:
+            logger.info(f"Pobieranie zdjęcia tarczy: {ss.target_image_path}")
+            target_image_base64 = await asyncio.to_thread(get_target_image_base64, ss.target_image_path)
+            logger.info(f"Zdjęcie tarczy pobrane pomyślnie, rozmiar base64: {len(target_image_base64) if target_image_base64 else 0}")
+        except Exception as e:
+            logger.warning(f"Nie udało się pobrać zdjęcia tarczy: {str(e)}", exc_info=True)
+            target_image_base64 = None
+    
+    # Określ przypadek
+    has_hits = ss.hits is not None
+    has_image = target_image_base64 is not None
+    
+    logger.info(f"Analiza AI - has_hits: {has_hits}, has_image: {has_image}, distance_m: {ss.distance_m}, shots: {ss.shots}")
+    
     try:
+        if has_image:
+            # Przypadek A lub B: użyj Vision
+            logger.info(f"Wywołanie Vision API dla sesji {session_id}")
+            vision_result = await AIService.analyze_target_with_vision(
+                gun=gun,
+                distance_m=ss.distance_m,
+                shots=ss.shots,
+                hits=ss.hits if has_hits else None,
+                target_image_base64=target_image_base64,
+                skill_level=skill_level
+            )
+            
+            if vision_result:
+                logger.info(f"Vision API zwróciło wynik: hits={vision_result.get('hits')}, accuracy={vision_result.get('accuracy')}")
+                # Przypadek A: Vision policzyło trafienia
+                if not has_hits:
+                    ss.hits = vision_result["hits"]
+                    ss.accuracy_percent = vision_result["accuracy"]
+                
+                ss.ai_comment = vision_result["comment"]
+                session.add(ss)
+                await asyncio.to_thread(session.commit)
+                await asyncio.to_thread(session.refresh, ss)
+                
+                return {
+                    "ai_comment": vision_result["comment"],
+                    "hits": vision_result.get("hits"),
+                    "accuracy": vision_result.get("accuracy")
+                }
+            else:
+                logger.warning(f"Vision API zwróciło None dla sesji {session_id}")
+                # Vision nie zadziałało - sprawdź przyczynę
+                if not has_hits:
+                    # Sprawdź czy problem jest z kluczem API
+                    if not settings.openai_api_key:
+                        raise HTTPException(
+                            status_code=400,
+                            detail="Brak klucza OpenAI API. Skonfiguruj OPENAI_API_KEY w zmiennych środowiskowych."
+                        )
+                    raise HTTPException(
+                        status_code=400,
+                        detail="Nie udało się policzyć trafień ze zdjęcia. Sprawdź czy zdjęcie jest poprawne lub podaj liczbę trafień ręcznie."
+                    )
+        
+        # Przypadek C lub fallback: zwykła analiza tekstowa
+        if not has_hits:
+            raise HTTPException(
+                status_code=400,
+                detail="Podaj liczbę trafień lub dodaj zdjęcie tarczy, aby wygenerować komentarz AI"
+            )
+        
+        if not ss.accuracy_percent:
+            ss.accuracy_percent = (ss.hits / ss.shots * 100) if ss.shots > 0 else 0
+        
         ai_comment = await AIService.generate_comment(
             gun=gun,
             distance_m=ss.distance_m,
@@ -203,6 +284,7 @@ async def get_shooting_session(
         accuracy_percent=ss.accuracy_percent,
         ai_comment=ss.ai_comment,
         session_type=ss.session_type if hasattr(ss, 'session_type') else 'standard',
+        target_image_path=ss.target_image_path if hasattr(ss, 'target_image_path') else None,
         user_id=ss.user_id,
         expires_at=ss.expires_at
     )
@@ -241,3 +323,132 @@ async def delete_session(
 ):
     result = await ShootingSessionsService.delete_shooting_session(session, session_id, user)
     return result
+
+
+@router.post("/{session_id}/target-image")
+async def upload_target_image_endpoint(
+    session_id: str,
+    file: UploadFile = File(...),
+    session: Session = Depends(get_session),
+    user: UserContext = Depends(role_required([UserRole.user, UserRole.admin]))
+):
+    """
+    Upload target image to Supabase Storage.
+    Only authenticated users (not guests) can upload images.
+    """
+    if user.is_guest:
+        raise HTTPException(status_code=403, detail="Goście nie mogą dodawać zdjęć")
+    
+    if not file.content_type or not file.content_type.startswith('image/'):
+        raise HTTPException(status_code=400, detail="Plik musi być obrazem")
+    
+    ss = session.get(ShootingSession, session_id)
+    if not ss:
+        raise HTTPException(status_code=404, detail="Sesja nie została znaleziona")
+    
+    if user.role != UserRole.admin:
+        if ss.user_id != user.user_id:
+            raise HTTPException(status_code=403, detail="Brak uprawnień do tej sesji")
+    
+    file_bytes = await file.read()
+    
+    if len(file_bytes) > 10 * 1024 * 1024:
+        raise HTTPException(status_code=400, detail="Plik jest zbyt duży (max 10MB)")
+    
+    filename = file.filename or f"target_{session_id}.jpg"
+    
+    try:
+        image_path = await asyncio.to_thread(
+            upload_target_image,
+            user.user_id,
+            session_id,
+            filename,
+            file_bytes
+        )
+        
+        if ss.target_image_path:
+            try:
+                await asyncio.to_thread(delete_target_image, ss.target_image_path)
+            except Exception:
+                pass
+        
+        ss.target_image_path = image_path
+        session.add(ss)
+        await asyncio.to_thread(session.commit)
+        await asyncio.to_thread(session.refresh, ss)
+        
+        return {"image_path": image_path}
+    except ValueError as e:
+        raise HTTPException(status_code=503, detail="Usługa przechowywania zdjęć nie jest dostępna. Skonfiguruj Supabase Storage.")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Błąd podczas przesyłania zdjęcia: {str(e)}")
+
+
+@router.get("/{session_id}/target-image")
+async def get_target_image(
+    session_id: str,
+    session: Session = Depends(get_session),
+    user: UserContext = Depends(role_required([UserRole.guest, UserRole.user, UserRole.admin]))
+):
+    """
+    Get signed URL for target image.
+    Returns null if no image is uploaded or if Supabase is not configured.
+    Only the owner of the session can see the image.
+    """
+    try:
+        ss = session.get(ShootingSession, session_id)
+        if not ss:
+            return {"url": None}
+        
+        if user.role != UserRole.admin:
+            if ss.user_id != user.user_id:
+                return {"url": None}
+        
+        if not ss.target_image_path:
+            return {"url": None}
+        
+        try:
+            signed_url = await asyncio.to_thread(get_signed_target_url, ss.target_image_path)
+            return {"url": signed_url}
+        except (ValueError, Exception) as e:
+            print(f"Warning: Could not generate signed URL: {e}")
+            return {"url": None}
+    except Exception as e:
+        print(f"Warning: Could not get target image: {e}")
+        return {"url": None}
+
+
+@router.delete("/{session_id}/target-image")
+async def delete_target_image_endpoint(
+    session_id: str,
+    session: Session = Depends(get_session),
+    user: UserContext = Depends(role_required([UserRole.user, UserRole.admin]))
+):
+    """
+    Delete target image from session.
+    Only authenticated users (not guests) can delete images.
+    """
+    if user.is_guest:
+        raise HTTPException(status_code=403, detail="Goście nie mogą usuwać zdjęć")
+    
+    ss = session.get(ShootingSession, session_id)
+    if not ss:
+        raise HTTPException(status_code=404, detail="Sesja nie została znaleziona")
+    
+    if user.role != UserRole.admin:
+        if ss.user_id != user.user_id:
+            raise HTTPException(status_code=403, detail="Brak uprawnień do tej sesji")
+    
+    if not ss.target_image_path:
+        raise HTTPException(status_code=404, detail="Sesja nie ma zdjęcia tarczy")
+    
+    try:
+        await asyncio.to_thread(delete_target_image, ss.target_image_path)
+        ss.target_image_path = None
+        session.add(ss)
+        await asyncio.to_thread(session.commit)
+        return {"message": "Zdjęcie tarczy zostało usunięte"}
+    except ValueError as e:
+        raise HTTPException(status_code=503, detail="Usługa przechowywania zdjęć nie jest dostępna.")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Błąd podczas usuwania zdjęcia: {str(e)}")

@@ -89,6 +89,18 @@ class GunService:
     @staticmethod
     async def delete_gun(session: Session, gun_id: str, user: UserContext) -> dict:
         gun = await GunService._get_single_gun(session, gun_id, user)
+        
+        # Usuń zdjęcie broni z Supabase jeśli istnieje
+        if gun.image_path:
+            try:
+                from services.supabase_service import delete_weapon_image
+                await asyncio.to_thread(delete_weapon_image, gun.image_path)
+            except Exception as e:
+                # Nie blokuj usuwania broni, jeśli usunięcie zdjęcia się nie powiodło
+                import logging
+                logger = logging.getLogger(__name__)
+                logger.warning(f"Nie udało się usunąć zdjęcia broni z Supabase: {str(e)}")
+        
         try:
             await asyncio.to_thread(session.delete, gun)
             await asyncio.to_thread(session.commit)

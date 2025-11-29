@@ -40,6 +40,7 @@ class ShootingSessionRead(BaseModel):
     accuracy_percent: Optional[float] = Field(default=None, ge=0, le=100)
     ai_comment: Optional[str] = None
     session_type: Optional[str] = Field(default='standard', max_length=20)
+    target_image_path: Optional[str] = None
     user_id: Optional[str] = None
     expires_at: Optional[datetime] = None
 

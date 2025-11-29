@@ -467,6 +467,18 @@ class ShootingSessionsService:
                 if ss.expires_at and ss.expires_at <= datetime.utcnow():
                     raise HTTPException(status_code=404, detail="Session not found")
 
+        # Usuń zdjęcie tarczy z Supabase jeśli istnieje
+        if ss.target_image_path:
+            try:
+                from services.supabase_service import delete_target_image
+                import asyncio
+                await asyncio.to_thread(delete_target_image, ss.target_image_path)
+            except Exception as e:
+                # Nie blokuj usuwania sesji, jeśli usunięcie zdjęcia się nie powiodło
+                import logging
+                logger = logging.getLogger(__name__)
+                logger.warning(f"Nie udało się usunąć zdjęcia tarczy z Supabase: {str(e)}")
+
         session.delete(ss)
         session.commit()
 
