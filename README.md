@@ -43,7 +43,7 @@ python3 -m uvicorn main:app --reload --host 0.0.0.0 --port 8000
 - `POST /api/shooting-sessions/` - dodaj sesję strzelecką (hybrydowa - może zawierać zarówno koszt jak i celność)
 - `GET /api/shooting-sessions/{id}` - pobierz pojedynczą sesję
 - `PATCH /api/shooting-sessions/{id}` - edytuj sesję (zachowuje koszt stały przy zmianie amunicji/liczby strzałów)
-- `DELETE /api/shooting-sessions/{id}` - usuń sesję (automatycznie zwraca amunicję do magazynu)
+- `DELETE /api/shooting-sessions/{id}` - usuń sesję (amunicja nie wraca do magazynu)
 - `GET /api/shooting-sessions/summary` - statystyki miesięczne (obsługuje `limit`, `offset`, `search`)
 
 ### Uwierzytelnianie i Konto
