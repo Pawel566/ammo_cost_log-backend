@@ -4,11 +4,31 @@ import asyncio
 from fastapi import HTTPException
 from supabase import Client
 from models import Gun, Ammo, ShootingSession, Attachment, Maintenance, UserSettings, User
-from services.user_context import UserContext
+from services.user_context import UserContext, calculate_guest_expiration
 from services.error_handler import ErrorHandler
 
 
 class AccountService:
+    @staticmethod
+    def ensure_user_exists(session: Session, user: UserContext) -> User:
+        """
+        Zapewnia, że użytkownik istnieje w tabeli users.
+        Tworzy go, jeśli nie istnieje.
+        """
+        query = select(User).where(User.user_id == user.user_id)
+        user_record = session.exec(query).first()
+        if not user_record:
+            user_record = User(
+                user_id=user.user_id,
+                skill_level="beginner",
+                rank="Nowicjusz"
+            )
+            if user.is_guest:
+                user_record.expires_at = calculate_guest_expiration()
+            session.add(user_record)
+            session.commit()
+            session.refresh(user_record)
+        return user_record
     @staticmethod
     async def change_password(session: Session, user: UserContext, supabase: Client, access_token: str, old_password: str, new_password: str) -> Dict[str, str]:
         if not supabase:

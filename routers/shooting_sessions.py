@@ -9,6 +9,7 @@ from services.user_context import UserContext, UserRole
 from services.shooting_sessions_service import ShootingSessionsService
 from services.ai_service import AIService
 from services.rank_service import update_user_rank
+from services.account_service import AccountService
 from datetime import datetime
 from typing import Optional, Dict, Any
 import asyncio
@@ -45,14 +46,13 @@ async def create_shooting_session(
     
     # ⚡ Aktualizacja rangi - po commit sesji strzeleckiej
     try:
-        query = select(User).where(User.user_id == user.user_id)
-        db_user = await asyncio.to_thread(lambda: session.exec(query).first())
-        if db_user:
-            logger.info(f"[RANK] Aktualizacja rangi dla użytkownika {user.user_id} po utworzeniu sesji. Sesja: shots={result['session'].shots}, hits={result['session'].hits}, accuracy={result['session'].accuracy_percent}")
-            updated_rank = await asyncio.to_thread(lambda: update_user_rank(db_user, session))
-            logger.info(f"[RANK] Zaktualizowana ranga: {updated_rank}")
-        else:
-            logger.warning(f"[RANK] Nie znaleziono użytkownika {user.user_id} w bazie")
+        def _ensure_user_and_update_rank(db_session: Session):
+            db_user = AccountService.ensure_user_exists(db_session, user)
+            return update_user_rank(db_user, db_session)
+        
+        logger.info(f"[RANK] Aktualizacja rangi dla użytkownika {user.user_id} po utworzeniu sesji. Sesja: shots={result['session'].shots}, hits={result['session'].hits}, accuracy={result['session'].accuracy_percent}")
+        updated_rank = await asyncio.to_thread(lambda: _ensure_user_and_update_rank(session))
+        logger.info(f"[RANK] Zaktualizowana ranga: {updated_rank}")
     except Exception as e:
         logger.error(f"[RANK] Błąd podczas aktualizacji rangi: {str(e)}", exc_info=True)
     
@@ -317,14 +317,13 @@ async def update_session(
     
     # ⚡ Aktualizacja rangi - po aktualizacji sesji
     try:
-        query = select(User).where(User.user_id == user.user_id)
-        db_user = await asyncio.to_thread(lambda: session.exec(query).first())
-        if db_user:
-            logger.info(f"[RANK] Aktualizacja rangi dla użytkownika {user.user_id} po aktualizacji sesji")
-            updated_rank = await asyncio.to_thread(lambda: update_user_rank(db_user, session))
-            logger.info(f"[RANK] Zaktualizowana ranga: {updated_rank}")
-        else:
-            logger.warning(f"[RANK] Nie znaleziono użytkownika {user.user_id} w bazie")
+        def _ensure_user_and_update_rank(db_session: Session):
+            db_user = AccountService.ensure_user_exists(db_session, user)
+            return update_user_rank(db_user, db_session)
+        
+        logger.info(f"[RANK] Aktualizacja rangi dla użytkownika {user.user_id} po aktualizacji sesji")
+        updated_rank = await asyncio.to_thread(lambda: _ensure_user_and_update_rank(session))
+        logger.info(f"[RANK] Zaktualizowana ranga: {updated_rank}")
     except Exception as e:
         logger.error(f"[RANK] Błąd podczas aktualizacji rangi: {str(e)}", exc_info=True)
     
@@ -353,14 +352,13 @@ async def delete_session(
     
     # ⚡ Aktualizacja rangi - po usunięciu sesji
     try:
-        query = select(User).where(User.user_id == user.user_id)
-        db_user = await asyncio.to_thread(lambda: session.exec(query).first())
-        if db_user:
-            logger.info(f"[RANK] Aktualizacja rangi dla użytkownika {user.user_id} po usunięciu sesji")
-            updated_rank = await asyncio.to_thread(lambda: update_user_rank(db_user, session))
-            logger.info(f"[RANK] Zaktualizowana ranga: {updated_rank}")
-        else:
-            logger.warning(f"[RANK] Nie znaleziono użytkownika {user.user_id} w bazie")
+        def _ensure_user_and_update_rank(db_session: Session):
+            db_user = AccountService.ensure_user_exists(db_session, user)
+            return update_user_rank(db_user, db_session)
+        
+        logger.info(f"[RANK] Aktualizacja rangi dla użytkownika {user.user_id} po usunięciu sesji")
+        updated_rank = await asyncio.to_thread(lambda: _ensure_user_and_update_rank(session))
+        logger.info(f"[RANK] Zaktualizowana ranga: {updated_rank}")
     except Exception as e:
         logger.error(f"[RANK] Błąd podczas aktualizacji rangi: {str(e)}", exc_info=True)
     
