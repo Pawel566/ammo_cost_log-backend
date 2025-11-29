@@ -8,6 +8,7 @@ from routers.auth import role_required
 from services.user_context import UserContext, UserRole
 from services.shooting_sessions_service import ShootingSessionsService
 from services.ai_service import AIService
+from services.rank_service import update_user_rank
 from datetime import datetime
 from typing import Optional, Dict, Any
 import asyncio
@@ -41,6 +42,12 @@ async def create_shooting_session(
     user: UserContext = Depends(role_required([UserRole.guest, UserRole.user, UserRole.admin]))
 ):
     result = await ShootingSessionsService.create_shooting_session(session, user, session_data)
+    
+    # ⚡ Aktualizacja rangi
+    db_user = await asyncio.to_thread(lambda: session.get(User, user.user_id))
+    if db_user:
+        await asyncio.to_thread(lambda: update_user_rank(db_user, session))
+    
     return {
         "id": result["session"].id,
         "gun_id": result["session"].gun_id,
@@ -300,6 +307,11 @@ async def update_session(
     result = await ShootingSessionsService.update_shooting_session(session, session_id, user, session_data)
     ss = result["session"]
     
+    # ⚡ Aktualizacja rangi
+    db_user = await asyncio.to_thread(lambda: session.get(User, user.user_id))
+    if db_user:
+        await asyncio.to_thread(lambda: update_user_rank(db_user, session))
+    
     return {
         "id": ss.id,
         "gun_id": ss.gun_id,
@@ -322,6 +334,12 @@ async def delete_session(
     user: UserContext = Depends(role_required([UserRole.guest, UserRole.user, UserRole.admin]))
 ):
     result = await ShootingSessionsService.delete_shooting_session(session, session_id, user)
+    
+    # ⚡ Aktualizacja rangi
+    db_user = await asyncio.to_thread(lambda: session.get(User, user.user_id))
+    if db_user:
+        await asyncio.to_thread(lambda: update_user_rank(db_user, session))
+    
     return result
 
 
