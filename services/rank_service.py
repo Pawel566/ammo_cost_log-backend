@@ -74,12 +74,19 @@ def get_rank_info(user: User, db: Session) -> dict:
             current_rank_index = i
             break
     
+    if current_rank_index is None:
+        current_rank_index = 0
+        current_rank = "Nowicjusz"
+    
     next_rank = None
     next_rank_min = None
-    if current_rank_index is not None and current_rank_index < len(RANKS) - 1:
+    is_max_rank = False
+    if current_rank_index < len(RANKS) - 1:
         next_rank_min, next_rank_max, next_rank = RANKS[current_rank_index + 1]
+    else:
+        is_max_rank = True
     
-    current_rank_min, current_rank_max, _ = RANKS[current_rank_index] if current_rank_index is not None else (0, 4, "Nowicjusz")
+    current_rank_min, current_rank_max, _ = RANKS[current_rank_index]
     
     progress_percent = 0
     if next_rank_min is not None:
@@ -95,6 +102,7 @@ def get_rank_info(user: User, db: Session) -> dict:
         "current_rank_max": current_rank_max,
         "next_rank": next_rank,
         "next_rank_min": next_rank_min,
-        "progress_percent": progress_percent
+        "progress_percent": progress_percent,
+        "is_max_rank": is_max_rank
     }
 
