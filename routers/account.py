@@ -9,6 +9,7 @@ from routers.auth import supabase
 from models import User
 from fastapi.security import HTTPAuthorizationCredentials
 from routers.auth import security
+from services.rank_service import get_rank_info, update_user_rank
 import asyncio
 
 router = APIRouter()
@@ -57,6 +58,23 @@ async def change_email(
         from fastapi import HTTPException
         raise HTTPException(status_code=401, detail="Brak tokena uwierzytelniającego")
     return await AccountService.change_email(session, user, supabase, credentials.credentials, data.new_email)
+
+
+@router.get("/rank")
+async def get_rank(
+    session: Session = Depends(get_session),
+    user: UserContext = Depends(get_current_user)
+):
+    query = select(User).where(User.user_id == user.user_id)
+    user_record = await asyncio.to_thread(lambda: session.exec(query).first())
+    if not user_record:
+        from fastapi import HTTPException
+        raise HTTPException(status_code=404, detail="Użytkownik nie znaleziony")
+    
+    rank_info = await asyncio.to_thread(lambda: get_rank_info(user_record, session))
+    updated_rank = await asyncio.to_thread(lambda: update_user_rank(user_record, session))
+    rank_info["rank"] = updated_rank
+    return rank_info
 
 
 @router.delete("")

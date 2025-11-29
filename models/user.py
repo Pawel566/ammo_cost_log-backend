@@ -5,6 +5,7 @@ from datetime import datetime
 
 class UserBase(SQLModel):
     skill_level: str = Field(default="beginner", max_length=20)
+    rank: Optional[str] = Field(default="Nowicjusz", max_length=50)
 
 
 class User(UserBase, table=True):
