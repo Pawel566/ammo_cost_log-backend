@@ -8,6 +8,8 @@ from routers.auth import role_required
 from services.user_context import UserContext, UserRole
 from services.shooting_sessions_service import ShootingSessionsService
 from services.ai_service import AIService
+from services.rank_service import update_user_rank
+from services.account_service import AccountService
 from datetime import datetime
 from typing import Optional, Dict, Any
 import asyncio
@@ -41,6 +43,19 @@ async def create_shooting_session(
     user: UserContext = Depends(role_required([UserRole.guest, UserRole.user, UserRole.admin]))
 ):
     result = await ShootingSessionsService.create_shooting_session(session, user, session_data)
+    
+    # ⚡ Aktualizacja rangi - po commit sesji strzeleckiej
+    try:
+        def _ensure_user_and_update_rank(db_session: Session):
+            db_user = AccountService.ensure_user_exists(db_session, user)
+            return update_user_rank(db_user, db_session)
+        
+        logger.info(f"[RANK] Aktualizacja rangi dla użytkownika {user.user_id} po utworzeniu sesji. Sesja: shots={result['session'].shots}, hits={result['session'].hits}, accuracy={result['session'].accuracy_percent}")
+        updated_rank = await asyncio.to_thread(lambda: _ensure_user_and_update_rank(session))
+        logger.info(f"[RANK] Zaktualizowana ranga: {updated_rank}")
+    except Exception as e:
+        logger.error(f"[RANK] Błąd podczas aktualizacji rangi: {str(e)}", exc_info=True)
+    
     return {
         "id": result["session"].id,
         "gun_id": result["session"].gun_id,
@@ -300,6 +315,18 @@ async def update_session(
     result = await ShootingSessionsService.update_shooting_session(session, session_id, user, session_data)
     ss = result["session"]
     
+    # ⚡ Aktualizacja rangi - po aktualizacji sesji
+    try:
+        def _ensure_user_and_update_rank(db_session: Session):
+            db_user = AccountService.ensure_user_exists(db_session, user)
+            return update_user_rank(db_user, db_session)
+        
+        logger.info(f"[RANK] Aktualizacja rangi dla użytkownika {user.user_id} po aktualizacji sesji")
+        updated_rank = await asyncio.to_thread(lambda: _ensure_user_and_update_rank(session))
+        logger.info(f"[RANK] Zaktualizowana ranga: {updated_rank}")
+    except Exception as e:
+        logger.error(f"[RANK] Błąd podczas aktualizacji rangi: {str(e)}", exc_info=True)
+    
     return {
         "id": ss.id,
         "gun_id": ss.gun_id,
@@ -322,6 +349,19 @@ async def delete_session(
     user: UserContext = Depends(role_required([UserRole.guest, UserRole.user, UserRole.admin]))
 ):
     result = await ShootingSessionsService.delete_shooting_session(session, session_id, user)
+    
+    # ⚡ Aktualizacja rangi - po usunięciu sesji
+    try:
+        def _ensure_user_and_update_rank(db_session: Session):
+            db_user = AccountService.ensure_user_exists(db_session, user)
+            return update_user_rank(db_user, db_session)
+        
+        logger.info(f"[RANK] Aktualizacja rangi dla użytkownika {user.user_id} po usunięciu sesji")
+        updated_rank = await asyncio.to_thread(lambda: _ensure_user_and_update_rank(session))
+        logger.info(f"[RANK] Zaktualizowana ranga: {updated_rank}")
+    except Exception as e:
+        logger.error(f"[RANK] Błąd podczas aktualizacji rangi: {str(e)}", exc_info=True)
+    
     return result
 
 

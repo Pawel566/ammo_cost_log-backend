@@ -205,7 +205,7 @@ class ShootingSessionsService:
             cost = SessionCalculationService.calculate_cost(ammo.price_per_unit, data.shots)
         
         accuracy_percent = None
-        if data.distance_m is not None and hits is not None and data.shots > 0:
+        if hits is not None and data.shots > 0:
             accuracy_percent = SessionCalculationService.calculate_accuracy(hits, data.shots)
         
         ammo.units_in_package -= data.shots

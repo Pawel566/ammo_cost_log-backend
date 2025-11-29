@@ -15,7 +15,20 @@ class UserSettingsService:
         if user.is_guest:
             query = query.where(or_(UserSettings.expires_at.is_(None), UserSettings.expires_at > datetime.utcnow()))
         settings = await asyncio.to_thread(lambda: session.exec(query).first())
+        
         if not settings:
+            existing_query = select(UserSettings).where(UserSettings.user_id == user.user_id)
+            existing = await asyncio.to_thread(lambda: session.exec(existing_query).first())
+            if existing:
+                if user.is_guest:
+                    existing.expires_at = user.expires_at
+                else:
+                    existing.expires_at = None
+                session.add(existing)
+                await asyncio.to_thread(session.commit)
+                await asyncio.to_thread(session.refresh, existing)
+                return existing
+            
             settings = UserSettings(
                 user_id=user.user_id,
                 ai_mode="off",
@@ -30,9 +43,22 @@ class UserSettingsService:
             )
             if user.is_guest:
                 settings.expires_at = user.expires_at
+            else:
+                settings.expires_at = None
             session.add(settings)
             await asyncio.to_thread(session.commit)
             await asyncio.to_thread(session.refresh, settings)
+        else:
+            if user.is_guest and settings.expires_at != user.expires_at:
+                settings.expires_at = user.expires_at
+                session.add(settings)
+                await asyncio.to_thread(session.commit)
+                await asyncio.to_thread(session.refresh, settings)
+            elif not user.is_guest and settings.expires_at is not None:
+                settings.expires_at = None
+                session.add(settings)
+                await asyncio.to_thread(session.commit)
+                await asyncio.to_thread(session.refresh, settings)
         return settings
 
     @staticmethod
@@ -58,6 +84,8 @@ class UserSettingsService:
             settings.ai_auto_comments = data["ai_auto_comments"]
         if user.is_guest:
             settings.expires_at = user.expires_at
+        else:
+            settings.expires_at = None
         session.add(settings)
         await asyncio.to_thread(session.commit)
         await asyncio.to_thread(session.refresh, settings)
