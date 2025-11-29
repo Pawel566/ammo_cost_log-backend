@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException, Depends, Query
+from fastapi import APIRouter, HTTPException, Depends, Query, UploadFile, File
 from sqlmodel import Session, select
 from models import ShootingSession, User, Gun
 from schemas.shooting_sessions import ShootingSessionRead, ShootingSessionCreate, ShootingSessionUpdate, MonthlySummary
@@ -12,6 +12,16 @@ from datetime import datetime
 from typing import Optional, Dict, Any
 import asyncio
 import logging
+
+try:
+    from services.supabase_service import upload_target_image, get_signed_target_url, delete_target_image
+except ImportError:
+    def upload_target_image(*args, **kwargs):
+        raise ValueError("Supabase storage is not configured")
+    def get_signed_target_url(*args, **kwargs):
+        raise ValueError("Supabase storage is not configured")
+    def delete_target_image(*args, **kwargs):
+        raise ValueError("Supabase storage is not configured")
 
 logger = logging.getLogger(__name__)
 
@@ -73,6 +83,7 @@ async def get_all_sessions(
             accuracy_percent=s.accuracy_percent,
             ai_comment=s.ai_comment,
             session_type=s.session_type if hasattr(s, 'session_type') else 'standard',
+            target_image_path=s.target_image_path if hasattr(s, 'target_image_path') else None,
             user_id=s.user_id,
             expires_at=s.expires_at
         )
@@ -203,6 +214,7 @@ async def get_shooting_session(
         accuracy_percent=ss.accuracy_percent,
         ai_comment=ss.ai_comment,
         session_type=ss.session_type if hasattr(ss, 'session_type') else 'standard',
+        target_image_path=ss.target_image_path if hasattr(ss, 'target_image_path') else None,
         user_id=ss.user_id,
         expires_at=ss.expires_at
     )
@@ -241,3 +253,132 @@ async def delete_session(
 ):
     result = await ShootingSessionsService.delete_shooting_session(session, session_id, user)
     return result
+
+
+@router.post("/{session_id}/target-image")
+async def upload_target_image_endpoint(
+    session_id: str,
+    file: UploadFile = File(...),
+    session: Session = Depends(get_session),
+    user: UserContext = Depends(role_required([UserRole.user, UserRole.admin]))
+):
+    """
+    Upload target image to Supabase Storage.
+    Only authenticated users (not guests) can upload images.
+    """
+    if user.is_guest:
+        raise HTTPException(status_code=403, detail="Goście nie mogą dodawać zdjęć")
+    
+    if not file.content_type or not file.content_type.startswith('image/'):
+        raise HTTPException(status_code=400, detail="Plik musi być obrazem")
+    
+    ss = session.get(ShootingSession, session_id)
+    if not ss:
+        raise HTTPException(status_code=404, detail="Sesja nie została znaleziona")
+    
+    if user.role != UserRole.admin:
+        if ss.user_id != user.user_id:
+            raise HTTPException(status_code=403, detail="Brak uprawnień do tej sesji")
+    
+    file_bytes = await file.read()
+    
+    if len(file_bytes) > 10 * 1024 * 1024:
+        raise HTTPException(status_code=400, detail="Plik jest zbyt duży (max 10MB)")
+    
+    filename = file.filename or f"target_{session_id}.jpg"
+    
+    try:
+        image_path = await asyncio.to_thread(
+            upload_target_image,
+            user.user_id,
+            session_id,
+            filename,
+            file_bytes
+        )
+        
+        if ss.target_image_path:
+            try:
+                await asyncio.to_thread(delete_target_image, ss.target_image_path)
+            except Exception:
+                pass
+        
+        ss.target_image_path = image_path
+        session.add(ss)
+        await asyncio.to_thread(session.commit)
+        await asyncio.to_thread(session.refresh, ss)
+        
+        return {"image_path": image_path}
+    except ValueError as e:
+        raise HTTPException(status_code=503, detail="Usługa przechowywania zdjęć nie jest dostępna. Skonfiguruj Supabase Storage.")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Błąd podczas przesyłania zdjęcia: {str(e)}")
+
+
+@router.get("/{session_id}/target-image")
+async def get_target_image(
+    session_id: str,
+    session: Session = Depends(get_session),
+    user: UserContext = Depends(role_required([UserRole.guest, UserRole.user, UserRole.admin]))
+):
+    """
+    Get signed URL for target image.
+    Returns null if no image is uploaded or if Supabase is not configured.
+    Only the owner of the session can see the image.
+    """
+    try:
+        ss = session.get(ShootingSession, session_id)
+        if not ss:
+            return {"url": None}
+        
+        if user.role != UserRole.admin:
+            if ss.user_id != user.user_id:
+                return {"url": None}
+        
+        if not ss.target_image_path:
+            return {"url": None}
+        
+        try:
+            signed_url = await asyncio.to_thread(get_signed_target_url, ss.target_image_path)
+            return {"url": signed_url}
+        except (ValueError, Exception) as e:
+            print(f"Warning: Could not generate signed URL: {e}")
+            return {"url": None}
+    except Exception as e:
+        print(f"Warning: Could not get target image: {e}")
+        return {"url": None}
+
+
+@router.delete("/{session_id}/target-image")
+async def delete_target_image_endpoint(
+    session_id: str,
+    session: Session = Depends(get_session),
+    user: UserContext = Depends(role_required([UserRole.user, UserRole.admin]))
+):
+    """
+    Delete target image from session.
+    Only authenticated users (not guests) can delete images.
+    """
+    if user.is_guest:
+        raise HTTPException(status_code=403, detail="Goście nie mogą usuwać zdjęć")
+    
+    ss = session.get(ShootingSession, session_id)
+    if not ss:
+        raise HTTPException(status_code=404, detail="Sesja nie została znaleziona")
+    
+    if user.role != UserRole.admin:
+        if ss.user_id != user.user_id:
+            raise HTTPException(status_code=403, detail="Brak uprawnień do tej sesji")
+    
+    if not ss.target_image_path:
+        raise HTTPException(status_code=404, detail="Sesja nie ma zdjęcia tarczy")
+    
+    try:
+        await asyncio.to_thread(delete_target_image, ss.target_image_path)
+        ss.target_image_path = None
+        session.add(ss)
+        await asyncio.to_thread(session.commit)
+        return {"message": "Zdjęcie tarczy zostało usunięte"}
+    except ValueError as e:
+        raise HTTPException(status_code=503, detail="Usługa przechowywania zdjęć nie jest dostępna.")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Błąd podczas usuwania zdjęcia: {str(e)}")
