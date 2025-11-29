@@ -159,18 +159,23 @@ async def generate_ai_comment(
     target_image_base64 = None
     if ss.target_image_path:
         try:
+            logger.info(f"Pobieranie zdjęcia tarczy: {ss.target_image_path}")
             target_image_base64 = await asyncio.to_thread(get_target_image_base64, ss.target_image_path)
+            logger.info(f"Zdjęcie tarczy pobrane pomyślnie, rozmiar base64: {len(target_image_base64) if target_image_base64 else 0}")
         except Exception as e:
-            logger.warning(f"Nie udało się pobrać zdjęcia tarczy: {str(e)}")
+            logger.warning(f"Nie udało się pobrać zdjęcia tarczy: {str(e)}", exc_info=True)
             target_image_base64 = None
     
     # Określ przypadek
     has_hits = ss.hits is not None
     has_image = target_image_base64 is not None
     
+    logger.info(f"Analiza AI - has_hits: {has_hits}, has_image: {has_image}, distance_m: {ss.distance_m}, shots: {ss.shots}")
+    
     try:
         if has_image:
             # Przypadek A lub B: użyj Vision
+            logger.info(f"Wywołanie Vision API dla sesji {session_id}")
             vision_result = await AIService.analyze_target_with_vision(
                 gun=gun,
                 distance_m=ss.distance_m,
@@ -181,6 +186,7 @@ async def generate_ai_comment(
             )
             
             if vision_result:
+                logger.info(f"Vision API zwróciło wynik: hits={vision_result.get('hits')}, accuracy={vision_result.get('accuracy')}")
                 # Przypadek A: Vision policzyło trafienia
                 if not has_hits:
                     ss.hits = vision_result["hits"]
@@ -197,11 +203,18 @@ async def generate_ai_comment(
                     "accuracy": vision_result.get("accuracy")
                 }
             else:
-                # Vision nie zadziałało, użyj zwykłej analizy
+                logger.warning(f"Vision API zwróciło None dla sesji {session_id}")
+                # Vision nie zadziałało - sprawdź przyczynę
                 if not has_hits:
+                    # Sprawdź czy problem jest z kluczem API
+                    if not settings.openai_api_key:
+                        raise HTTPException(
+                            status_code=400,
+                            detail="Brak klucza OpenAI API. Skonfiguruj OPENAI_API_KEY w zmiennych środowiskowych."
+                        )
                     raise HTTPException(
                         status_code=400,
-                        detail="Nie udało się policzyć trafień ze zdjęcia. Podaj liczbę trafień ręcznie."
+                        detail="Nie udało się policzyć trafień ze zdjęcia. Sprawdź czy zdjęcie jest poprawne lub podaj liczbę trafień ręcznie."
                     )
         
         # Przypadek C lub fallback: zwykła analiza tekstowa
