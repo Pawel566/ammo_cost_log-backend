@@ -84,6 +84,8 @@ class UserSettingsService:
             settings.ai_auto_comments = data["ai_auto_comments"]
         if user.is_guest:
             settings.expires_at = user.expires_at
+        else:
+            settings.expires_at = None
         session.add(settings)
         await asyncio.to_thread(session.commit)
         await asyncio.to_thread(session.refresh, settings)
