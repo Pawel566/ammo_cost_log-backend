@@ -53,6 +53,13 @@ class UserInfo(BaseModel):
 class RefreshRequest(BaseModel):
     refresh_token: str
 
+class ForgotPasswordRequest(BaseModel):
+    email: str
+
+class ResetPasswordRequest(BaseModel):
+    new_password: str
+    confirm_password: str
+
 def _resolve_role(metadata: Optional[dict]) -> UserRole:
     if not metadata:
         return UserRole.user
@@ -251,3 +258,26 @@ async def refresh_token(data: RefreshRequest):
         raise
     except Exception as e:
         raise ErrorHandler.handle_supabase_error(e, "refresh_token")
+
+@router.post("/forgot-password")
+async def forgot_password(request: ForgotPasswordRequest):
+    """Send password reset email"""
+    if not supabase:
+        raise HTTPException(status_code=503, detail="Authentication service not available")
+    try:
+        # Supabase automatically sends password reset email
+        # The redirect URL should be configured in Supabase dashboard
+        frontend_url = settings.frontend_url or 'http://localhost:3000'
+        redirect_url = f"{frontend_url}/reset-password"
+        await asyncio.to_thread(
+            supabase.auth.reset_password_for_email,
+            request.email,
+            {
+                "redirect_to": redirect_url
+            }
+        )
+        # Always return success to prevent email enumeration
+        return {"message": "Jeśli podany email istnieje w systemie, wysłaliśmy link do resetowania hasła."}
+    except Exception as e:
+        # Always return success to prevent email enumeration
+        return {"message": "Jeśli podany email istnieje w systemie, wysłaliśmy link do resetowania hasła."}
