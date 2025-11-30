@@ -1,5 +1,29 @@
 # Changelog
 
+## [0.5.5] – 2025-01-XX
+### Dodano
+- System rang użytkowników oparty na liczbie zaliczonych sesji strzeleckich
+- Serwis `rank_service.py` z logiką obliczania rang na podstawie celności sesji
+- Wymagania celności dla różnych poziomów doświadczenia:
+  - Początkujący: ≥75%
+  - Średniozaawansowany: ≥85%
+  - Zaawansowany: ≥95%
+- 20 poziomów rang od "Nowicjusz" (0-4 sesje) do "Legenda Toru" (200+ sesji)
+- Automatyczna aktualizacja rangi po dodaniu, edycji lub usunięciu sesji strzeleckiej
+- Endpoint `/api/account/rank` do pobierania informacji o randze użytkownika
+- Pole `rank` w modelu `User` do przechowywania aktualnej rangi użytkownika
+- Funkcja `ensure_user_exists` w `AccountService` do synchronizacji użytkowników z Supabase Auth
+
+### Zmieniono
+- Obliczanie celności (`accuracy_percent`) w sesjach strzeleckich - teraz zawsze obliczane jeśli dostępne są `hits` i `shots`, niezależnie od `distance_m`
+- Ustawienia użytkownika (`UserSettings`) - dla zalogowanych użytkowników ustawienia są teraz permanentne (`expires_at = None`)
+
+## [0.5.0] – 2025-01-XX
+### Dodano
+- Analiza zdjęć tarczy strzeleckiej przy użyciu AI (OpenAI Vision API)
+- Endpoint do analizy zdjęć tarczy z automatycznym wykrywaniem trafień i obliczaniem celności
+- Integracja z OpenAI Vision API do przetwarzania obrazów tarczy strzeleckiej
+
 ## [0.4.0] – 2025-01-XX
 ### Zmieniono
 - Usunięto automatyczne zwracanie amunicji do magazynu przy usuwaniu sesji strzeleckiej
