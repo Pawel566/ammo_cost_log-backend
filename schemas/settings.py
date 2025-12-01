@@ -13,7 +13,7 @@ class UserSettingsRead(BaseModel):
     low_ammo_notifications_enabled: bool
     ai_analysis_intensity: str
     ai_auto_comments: bool
-    language: str
+    language: str = "pl"
 
     model_config = ConfigDict(from_attributes=True)
 
