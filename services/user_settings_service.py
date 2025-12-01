@@ -39,7 +39,8 @@ class UserSettingsService:
                 maintenance_notifications_enabled=True,
                 low_ammo_notifications_enabled=True,
                 ai_analysis_intensity="normalna",
-                ai_auto_comments=False
+                ai_auto_comments=False,
+                language="pl"
             )
             if user.is_guest:
                 settings.expires_at = user.expires_at
@@ -82,6 +83,8 @@ class UserSettingsService:
             settings.ai_analysis_intensity = data["ai_analysis_intensity"]
         if "ai_auto_comments" in data:
             settings.ai_auto_comments = data["ai_auto_comments"]
+        if "language" in data:
+            settings.language = data["language"]
         if user.is_guest:
             settings.expires_at = user.expires_at
         else:
