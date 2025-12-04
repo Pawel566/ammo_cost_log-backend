@@ -12,6 +12,8 @@ Backend do aplikacji zarządzania strzelectwem z inteligentnym asystentem AI.
 - **Statystyki** - miesięczne podsumowania i analizy (z paginacją `limit`/`offset`/`search`)
 - **Uwierzytelnianie** - Supabase Auth z szczegółową obsługą błędów
 - **UUID identyfikatory** - wszystkie zasoby korzystają z globalnie unikalnych ID
+- **Obsługa wielu walut** - automatyczna konwersja między PLN, USD, EUR, GBP z aktualnymi kursami z API NBP
+- **Jednostki odległości** - wsparcie dla metrów i yardów w ustawieniach użytkownika
 
 ## 🛠️ Technologie
 
@@ -60,6 +62,15 @@ python3 -m uvicorn main:app --reload --host 0.0.0.0 --port 8000
 ### Ustawienia
 - `GET /api/settings/` - ustawienia użytkownika
 - `PUT /api/settings/` - aktualizuj ustawienia
+
+### Kursy Walut
+- `GET /api/currency-rates/` - lista kursów walut (obsługuje `code` jako filtr)
+- `GET /api/currency-rates/latest` - najnowsze kursy dla wszystkich walut (USD, EUR, GBP)
+- `GET /api/currency-rates/latest/{code}` - najnowszy kurs dla wybranej waluty
+- `POST /api/currency-rates/fetch` - pobranie aktualnych kursów z API NBP
+- `POST /api/currency-rates/fetch-sync` - synchroniczne pobranie kursów
+- `POST /api/currency-rates/convert` - konwersja kwoty między walutami
+- `GET /api/currency-rates/rate/{currency}` - aktualny kurs dla waluty
 
 Żądania bez nagłówka `Authorization` otrzymują w odpowiedzi identyfikator `X-Guest-Session` oraz `X-Guest-Session-Expires-At`. Do kolejnych wywołań należy dołączać pierwszy nagłówek, aby utrzymać 24-godzinny sandbox gościa.
 

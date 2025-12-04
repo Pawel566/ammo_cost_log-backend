@@ -7,6 +7,9 @@ from fastapi import HTTPException
 from models import Maintenance, Gun, ShootingSession
 from services.user_context import UserContext, UserRole
 from services.gun_service import GunService
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 class MaintenanceService:
@@ -24,64 +27,79 @@ class MaintenanceService:
 
     @staticmethod
     async def _calculate_rounds_since_last(session: Session, user: UserContext, gun_id: str, last_maintenance_date: date, until_date: Optional[date] = None) -> int:
-        query_sessions = select(ShootingSession).where(
-            ShootingSession.gun_id == gun_id,
-            ShootingSession.user_id == user.user_id,
-            ShootingSession.date > last_maintenance_date
-        )
-        if until_date:
-            query_sessions = query_sessions.where(ShootingSession.date <= until_date)
-        if user.is_guest:
-            query_sessions = query_sessions.where(
-                or_(ShootingSession.expires_at.is_(None), ShootingSession.expires_at > datetime.utcnow())
+        try:
+            query_sessions = select(ShootingSession).where(
+                ShootingSession.gun_id == gun_id,
+                ShootingSession.user_id == user.user_id,
+                ShootingSession.date > last_maintenance_date
             )
-        sessions = await asyncio.to_thread(lambda: session.exec(query_sessions).all())
-        rounds = sum(session_item.shots for session_item in sessions)
-        return rounds
+            if until_date:
+                query_sessions = query_sessions.where(ShootingSession.date <= until_date)
+            if user.is_guest:
+                query_sessions = query_sessions.where(
+                    or_(ShootingSession.expires_at.is_(None), ShootingSession.expires_at > datetime.utcnow())
+                )
+            sessions = await asyncio.to_thread(lambda: session.exec(query_sessions).all())
+            rounds = sum(session_item.shots for session_item in sessions)
+            return rounds
+        except Exception as e:
+            logger.warning(f"Błąd podczas obliczania rounds_since_last dla {gun_id}: {e}")
+            return 0
 
     @staticmethod
     async def list_all(session: Session, user: UserContext, gun_id: Optional[str] = None) -> List[Maintenance]:
-        query = MaintenanceService._query_for_user(user, gun_id).order_by(desc(Maintenance.date))
-        maintenance_list = await asyncio.to_thread(lambda: session.exec(query).all())
-        
-        result = []
-        processed_guns = set()
-        
-        for maint in maintenance_list:
-            maint_dict = {
-                "id": maint.id,
-                "gun_id": maint.gun_id,
-                "user_id": maint.user_id,
-                "date": maint.date,
-                "notes": maint.notes,
-                "rounds_since_last": maint.rounds_since_last,
-                "expires_at": maint.expires_at,
-                "activities": maint.activities
-            }
+        try:
+            query = MaintenanceService._query_for_user(user, gun_id).order_by(desc(Maintenance.date))
+            maintenance_list = await asyncio.to_thread(lambda: session.exec(query).all())
             
-            gun_query = select(Gun).where(Gun.id == maint.gun_id)
-            if user.role != UserRole.admin:
-                gun_query = gun_query.where(Gun.user_id == user.user_id)
-            gun = await asyncio.to_thread(lambda: session.exec(gun_query).first())
-            if gun:
-                maint_dict["gun_name"] = gun.name
+            result = []
+            processed_guns = set()
             
-            if maint.gun_id not in processed_guns:
-                query_last = MaintenanceService._query_for_user(user, maint.gun_id).order_by(desc(Maintenance.date)).limit(1)
-                last_maintenance = await asyncio.to_thread(lambda: session.exec(query_last).first())
-                if last_maintenance and last_maintenance.id == maint.id:
-                    rounds_since_last = await MaintenanceService._calculate_rounds_since_last(
-                        session, user, maint.gun_id, maint.date, None
-                    )
-                    maint_dict["rounds_since_last"] = rounds_since_last
-                    maint.rounds_since_last = rounds_since_last
-                    session.add(maint)
-                    await asyncio.to_thread(session.commit)
-                processed_guns.add(maint.gun_id)
+            for maint in maintenance_list:
+                try:
+                    maint_dict = {
+                        "id": maint.id,
+                        "gun_id": maint.gun_id,
+                        "user_id": maint.user_id,
+                        "date": maint.date,
+                        "notes": maint.notes,
+                        "rounds_since_last": maint.rounds_since_last,
+                        "expires_at": maint.expires_at,
+                        "activities": maint.activities
+                    }
+                    
+                    gun_query = select(Gun).where(Gun.id == maint.gun_id)
+                    if user.role != UserRole.admin:
+                        gun_query = gun_query.where(Gun.user_id == user.user_id)
+                    gun = await asyncio.to_thread(lambda: session.exec(gun_query).first())
+                    if gun:
+                        maint_dict["gun_name"] = gun.name
+                    
+                    if maint.gun_id not in processed_guns:
+                        try:
+                            query_last = MaintenanceService._query_for_user(user, maint.gun_id).order_by(desc(Maintenance.date)).limit(1)
+                            last_maintenance = await asyncio.to_thread(lambda: session.exec(query_last).first())
+                            if last_maintenance and last_maintenance.id == maint.id:
+                                rounds_since_last = await MaintenanceService._calculate_rounds_since_last(
+                                    session, user, maint.gun_id, maint.date, None
+                                )
+                                maint_dict["rounds_since_last"] = rounds_since_last
+                                maint.rounds_since_last = rounds_since_last
+                                session.add(maint)
+                                await asyncio.to_thread(session.commit)
+                        except Exception as e:
+                            logger.warning(f"Błąd podczas obliczania rounds_since_last dla {maint.gun_id}: {e}")
+                        processed_guns.add(maint.gun_id)
+                    
+                    result.append(maint_dict)
+                except Exception as e:
+                    logger.error(f"Błąd podczas przetwarzania konserwacji {maint.id}: {e}", exc_info=True)
+                    continue
             
-            result.append(maint_dict)
-        
-        return result
+            return result
+        except Exception as e:
+            logger.error(f"Błąd podczas pobierania listy konserwacji: {e}", exc_info=True)
+            return []
 
     @staticmethod
     async def list_for_gun(session: Session, user: UserContext, gun_id: str) -> List[Maintenance]:
@@ -190,45 +208,56 @@ class MaintenanceService:
 
     @staticmethod
     async def get_statistics(session: Session, user: UserContext) -> Dict[str, Any]:
-        query_guns = select(Gun)
-        if user.role != UserRole.admin:
-            query_guns = query_guns.where(Gun.user_id == user.user_id)
-        if user.is_guest:
-            query_guns = query_guns.where(or_(Gun.expires_at.is_(None), Gun.expires_at > datetime.utcnow()))
-        guns = await asyncio.to_thread(lambda: session.exec(query_guns).all())
-        
-        today = date.today()
-        gun_stats = []
-        longest_without = None
-        max_days = 0
-        
-        for gun in guns:
-            query_last = MaintenanceService._query_for_user(user, gun.id).order_by(desc(Maintenance.date)).limit(1)
-            last_maintenance = await asyncio.to_thread(lambda: session.exec(query_last).first())
+        try:
+            query_guns = select(Gun)
+            if user.role != UserRole.admin:
+                query_guns = query_guns.where(Gun.user_id == user.user_id)
+            if user.is_guest:
+                query_guns = query_guns.where(or_(Gun.expires_at.is_(None), Gun.expires_at > datetime.utcnow()))
+            guns = await asyncio.to_thread(lambda: session.exec(query_guns).all())
             
-            if last_maintenance:
-                days_since = (today - last_maintenance.date).days
-            else:
-                days_since = None
+            today = date.today()
+            gun_stats = []
+            longest_without = None
+            max_days = 0
             
-            gun_stats.append({
-                "gun_id": gun.id,
-                "gun_name": gun.name,
-                "days_since_last": days_since
-            })
+            for gun in guns:
+                try:
+                    query_last = MaintenanceService._query_for_user(user, gun.id).order_by(desc(Maintenance.date)).limit(1)
+                    last_maintenance = await asyncio.to_thread(lambda: session.exec(query_last).first())
+                    
+                    if last_maintenance:
+                        days_since = (today - last_maintenance.date).days
+                    else:
+                        days_since = None
+                    
+                    gun_stats.append({
+                        "gun_id": gun.id,
+                        "gun_name": gun.name,
+                        "days_since_last": days_since
+                    })
+                    
+                    if days_since is not None and days_since > max_days:
+                        max_days = days_since
+                        longest_without = {
+                            "gun_id": gun.id,
+                            "gun_name": gun.name,
+                            "days_since": days_since
+                        }
+                except Exception as e:
+                    logger.warning(f"Błąd podczas przetwarzania statystyk dla broni {gun.id}: {e}")
+                    continue
             
-            if days_since is not None and days_since > max_days:
-                max_days = days_since
-                longest_without = {
-                    "gun_id": gun.id,
-                    "gun_name": gun.name,
-                    "days_since": days_since
-                }
-        
-        return {
-            "longest_without_maintenance": longest_without,
-            "guns_status": gun_stats
-        }
+            return {
+                "longest_without_maintenance": longest_without,
+                "guns_status": gun_stats
+            }
+        except Exception as e:
+            logger.error(f"Błąd podczas pobierania statystyk konserwacji: {e}", exc_info=True)
+            return {
+                "longest_without_maintenance": None,
+                "guns_status": []
+            }
 
 
 

@@ -30,8 +30,37 @@ def init_db():
                         conn.execute(text("ALTER TABLE user_settings ADD COLUMN language VARCHAR(10) DEFAULT 'pl'"))
                     else:
                         conn.execute(text("ALTER TABLE user_settings ADD COLUMN language VARCHAR(10) DEFAULT 'pl'"))
+            if "currency" not in columns:
+                with engine.begin() as conn:
+                    if "sqlite" in DATABASE_URL:
+                        conn.execute(text("ALTER TABLE user_settings ADD COLUMN currency VARCHAR(3) DEFAULT 'pln'"))
+                    else:
+                        conn.execute(text("ALTER TABLE user_settings ADD COLUMN currency VARCHAR(3) DEFAULT 'pln'"))
     except Exception as e:
-        logging.warning(f"Could not add language column to user_settings: {e}")
+        logging.warning(f"Could not add language/currency column to user_settings: {e}")
+    
+    try:
+        inspector = inspect(engine)
+        if inspector.has_table("maintenance"):
+            columns = [col["name"] for col in inspector.get_columns("maintenance")]
+            if "rounds_since_last" not in columns:
+                with engine.begin() as conn:
+                    if "sqlite" in DATABASE_URL:
+                        conn.execute(text("ALTER TABLE maintenance ADD COLUMN rounds_since_last INTEGER DEFAULT 0"))
+                        logging.info("Added rounds_since_last column to maintenance table")
+                    else:
+                        conn.execute(text("ALTER TABLE maintenance ADD COLUMN rounds_since_last INTEGER DEFAULT 0"))
+                        logging.info("Added rounds_since_last column to maintenance table")
+            if "activities" not in columns:
+                with engine.begin() as conn:
+                    if "sqlite" in DATABASE_URL:
+                        conn.execute(text("ALTER TABLE maintenance ADD COLUMN activities TEXT"))
+                        logging.info("Added activities column to maintenance table")
+                    else:
+                        conn.execute(text("ALTER TABLE maintenance ADD COLUMN activities JSON"))
+                        logging.info("Added activities column to maintenance table")
+    except Exception as e:
+        logging.warning(f"Could not add columns to maintenance: {e}")
 
 def get_session() -> Generator[Session, None, None]:
     with Session(engine) as session:

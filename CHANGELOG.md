@@ -1,5 +1,29 @@
 # Changelog
 
+## [0.6.5] – 2025-12-04
+### Dodano
+- System obsługi kursów walut z integracją API NBP (USD, EUR, GBP)
+- Model `CurrencyRate` do przechowywania kursów walut
+- Endpointy `/api/currency-rates/` do zarządzania kursami walut:
+  - `GET /api/currency-rates/` - lista kursów walut
+  - `GET /api/currency-rates/latest` - najnowsze kursy dla wszystkich walut
+  - `GET /api/currency-rates/latest/{code}` - najnowszy kurs dla wybranej waluty
+  - `POST /api/currency-rates/fetch` - pobranie aktualnych kursów z API NBP
+  - `POST /api/currency-rates/convert` - konwersja kwoty między walutami
+  - `GET /api/currency-rates/rate/{currency}` - aktualny kurs dla waluty
+- Serwis `currency_service.py` z funkcjami konwersji walut
+- Pole `currency` w modelu `UserSettings` do przechowywania preferowanej waluty użytkownika
+- Pole `distance_unit` w modelu `UserSettings` do przechowywania preferowanej jednostki odległości (m/y)
+- Automatyczne pobieranie kursów walut z API NBP przez HTTPS
+
+### Zmieniono
+- Rozszerzona lista czynności serwisowych w interfejsie użytkownika (25 pozycji zamiast 11)
+- Ulepszona organizacja czynności serwisowych w sekcje tematyczne
+
+## [0.6.0] – 2025-12-01
+### Dodano
+- Wsparcie dla wielojęzyczności w API (przygotowanie pod i18n)
+
 ## [0.5.5] – 2025-01-XX
 ### Dodano
 - System rang użytkowników oparty na liczbie zaliczonych sesji strzeleckich

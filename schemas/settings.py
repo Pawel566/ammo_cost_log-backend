@@ -14,6 +14,7 @@ class UserSettingsRead(BaseModel):
     ai_analysis_intensity: str
     ai_auto_comments: bool
     language: str = "pl"
+    currency: str = "pln"
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -29,4 +30,5 @@ class UserSettingsUpdate(BaseModel):
     ai_analysis_intensity: Optional[str] = Field(default=None, max_length=20)
     ai_auto_comments: Optional[bool] = None
     language: Optional[str] = Field(default=None, max_length=10)
+    currency: Optional[str] = Field(default=None, max_length=3)
 

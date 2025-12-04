@@ -9,3 +9,15 @@ services:
     envVars:
       - key: PYTHON_VERSION
         value: 3.11.7
+
+  - type: cron
+    name: currency-rates-fetcher
+    env: python
+    plan: free
+    schedule: "0 10 * * *"
+    buildCommand: pip install -r requirements.txt
+    startCommand: python fetch_currency_rates.py
+    rootDir: .
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.7

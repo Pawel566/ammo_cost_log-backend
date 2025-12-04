@@ -10,6 +10,7 @@ from services.shooting_sessions_service import ShootingSessionsService
 from services.ai_service import AIService
 from services.rank_service import update_user_rank
 from services.account_service import AccountService
+from services.user_settings_service import UserSettingsService
 from datetime import datetime
 from typing import Optional, Dict, Any
 import asyncio
@@ -32,10 +33,58 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/shooting-sessions", tags=["Shooting Sessions"])
 
 
+def convert_distance(distance_m: Optional[float], distance_unit: str) -> tuple[Optional[float], str]:
+    """
+    Konwertuje dystans z metrów na jednostki użytkownika.
+    Zwraca (przeliczona_wartość, jednostka)
+    """
+    if distance_m is None:
+        return None, distance_unit
+    
+    if distance_unit == "yd":
+        # Konwersja metrów na jardy: 1 m = 1.09361 yd
+        distance_yd = round(distance_m * 1.09361, 2)
+        return distance_yd, "yd"
+    else:
+        # Domyślnie metry
+        return round(distance_m, 2), "m"
+
+
+async def create_session_read(session_obj: ShootingSession, db_session: Session, user: UserContext) -> ShootingSessionRead:
+    """Tworzy ShootingSessionRead z konwersją jednostek dystansu"""
+    # Pobierz ustawienia użytkownika
+    user_settings = await UserSettingsService.get_settings(db_session, user)
+    distance_unit = user_settings.distance_unit or "m"
+    
+    # Konwertuj dystans
+    distance, unit = convert_distance(session_obj.distance_m, distance_unit)
+    
+    return ShootingSessionRead(
+        id=session_obj.id,
+        gun_id=session_obj.gun_id,
+        ammo_id=session_obj.ammo_id,
+        date=session_obj.date.isoformat() if hasattr(session_obj.date, 'isoformat') else str(session_obj.date),
+        shots=session_obj.shots,
+        cost=session_obj.cost,
+        notes=session_obj.notes,
+        distance_m=session_obj.distance_m,  # Oryginalna wartość w metrach
+        distance=distance,  # Przeliczona wartość
+        distance_unit=unit,  # Jednostka przeliczona
+        hits=session_obj.hits,
+        accuracy_percent=session_obj.accuracy_percent,
+        ai_comment=session_obj.ai_comment,
+        session_type=session_obj.session_type if hasattr(session_obj, 'session_type') else 'standard',
+        target_image_path=session_obj.target_image_path if hasattr(session_obj, 'target_image_path') else None,
+        user_id=session_obj.user_id,
+        expires_at=session_obj.expires_at
+    )
+
+
 class MonthlySummaryResponse(PaginatedResponse[MonthlySummary]):
     pass
 
 #
+@router.post("", response_model=Dict[str, Any])
 @router.post("/", response_model=Dict[str, Any])
 async def create_shooting_session(
     session_data: ShootingSessionCreate,
@@ -56,6 +105,11 @@ async def create_shooting_session(
     except Exception as e:
         logger.error(f"[RANK] Błąd podczas aktualizacji rangi: {str(e)}", exc_info=True)
     
+    # Konwertuj dystans do jednostek użytkownika
+    user_settings = await UserSettingsService.get_settings(session, user)
+    distance_unit = user_settings.distance_unit or "m"
+    distance, unit = convert_distance(result["session"].distance_m, distance_unit)
+    
     return {
         "id": result["session"].id,
         "gun_id": result["session"].gun_id,
@@ -65,6 +119,8 @@ async def create_shooting_session(
         "cost": result["session"].cost,
         "notes": result["session"].notes,
         "distance_m": result["session"].distance_m,
+        "distance": distance,
+        "distance_unit": unit,
         "hits": result["session"].hits,
         "accuracy_percent": result["session"].accuracy_percent,
         "remaining_ammo": result["remaining_ammo"]
@@ -72,6 +128,7 @@ async def create_shooting_session(
 
 
 @router.get("/", response_model=list[ShootingSessionRead])
+@router.get("", response_model=list[ShootingSessionRead])
 async def get_all_sessions(
     session: Session = Depends(get_session),
     user: UserContext = Depends(role_required([UserRole.guest, UserRole.user, UserRole.admin])),
@@ -82,30 +139,18 @@ async def get_all_sessions(
     date_from: Optional[str] = Query(default=None),
     date_to: Optional[str] = Query(default=None)
 ):
-    result = await ShootingSessionsService.get_all_sessions(
-        session, user, limit, offset, search, gun_id, date_from, date_to
-    )
-    sessions = result["items"]
-    return [
-        ShootingSessionRead(
-            id=s.id,
-            gun_id=s.gun_id,
-            ammo_id=s.ammo_id,
-            date=s.date.isoformat() if hasattr(s.date, 'isoformat') else str(s.date),
-            shots=s.shots,
-            cost=s.cost,
-            notes=s.notes,
-            distance_m=s.distance_m,
-            hits=s.hits,
-            accuracy_percent=s.accuracy_percent,
-            ai_comment=s.ai_comment,
-            session_type=s.session_type if hasattr(s, 'session_type') else 'standard',
-            target_image_path=s.target_image_path if hasattr(s, 'target_image_path') else None,
-            user_id=s.user_id,
-            expires_at=s.expires_at
+    try:
+        result = await ShootingSessionsService.get_all_sessions(
+            session, user, limit, offset, search, gun_id, date_from, date_to
         )
-        for s in sessions
-    ]
+        sessions = result.get("items", [])
+        return [
+            await create_session_read(s, session, user)
+            for s in sessions
+        ]
+    except Exception as e:
+        logger.error(f"Błąd podczas pobierania sesji: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Błąd podczas pobierania sesji: {str(e)}")
 
 @router.get("/summary", response_model=MonthlySummaryResponse)
 async def get_monthly_summary(
@@ -115,13 +160,17 @@ async def get_monthly_summary(
     offset: int = Query(0, ge=0),
     search: Optional[str] = Query(default=None, min_length=1)
 ):
-    result = await ShootingSessionsService.get_monthly_summary(session, user, limit, offset, search)
-    return {
-        "total": result["total"],
-        "items": result["items"],
-        "limit": limit,
-        "offset": offset
-    }
+    try:
+        result = await ShootingSessionsService.get_monthly_summary(session, user, limit, offset, search)
+        return {
+            "total": result.get("total", 0),
+            "items": result.get("items", []),
+            "limit": limit,
+            "offset": offset
+        }
+    except Exception as e:
+        logger.error(f"Błąd podczas pobierania podsumowania: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Błąd podczas pobierania podsumowania: {str(e)}")
 
 
 @router.post("/{session_id}/generate-ai-comment", response_model=Dict[str, Any])
@@ -170,6 +219,10 @@ async def generate_ai_comment(
     
     skill_level = await asyncio.to_thread(_get_skill_level, session)
     
+    # Pobierz język użytkownika
+    user_settings = await UserSettingsService.get_settings(session, user)
+    user_language = user_settings.language or "pl"
+    
     # Sprawdź czy jest zdjęcie tarczy
     target_image_base64 = None
     if ss.target_image_path:
@@ -197,7 +250,8 @@ async def generate_ai_comment(
                 shots=ss.shots,
                 hits=ss.hits if has_hits else None,
                 target_image_base64=target_image_base64,
-                skill_level=skill_level
+                skill_level=skill_level,
+                language=user_language
             )
             
             if vision_result:
@@ -248,7 +302,8 @@ async def generate_ai_comment(
             hits=ss.hits,
             shots=ss.shots,
             accuracy=ss.accuracy_percent,
-            skill_level=skill_level
+            skill_level=skill_level,
+            language=user_language
         )
         
         # Sprawdź czy komentarz zawiera błąd
@@ -286,23 +341,7 @@ async def get_shooting_session(
             if ss.expires_at and ss.expires_at <= datetime.utcnow():
                 raise HTTPException(status_code=404, detail="Session not found")
     
-    return ShootingSessionRead(
-        id=ss.id,
-        gun_id=ss.gun_id,
-        ammo_id=ss.ammo_id,
-        date=ss.date.isoformat() if hasattr(ss.date, 'isoformat') else str(ss.date),
-        shots=ss.shots,
-        cost=ss.cost,
-        notes=ss.notes,
-        distance_m=ss.distance_m,
-        hits=ss.hits,
-        accuracy_percent=ss.accuracy_percent,
-        ai_comment=ss.ai_comment,
-        session_type=ss.session_type if hasattr(ss, 'session_type') else 'standard',
-        target_image_path=ss.target_image_path if hasattr(ss, 'target_image_path') else None,
-        user_id=ss.user_id,
-        expires_at=ss.expires_at
-    )
+    return await create_session_read(ss, session, user)
 
 
 @router.patch("/{session_id}", response_model=Dict[str, Any])
@@ -327,6 +366,11 @@ async def update_session(
     except Exception as e:
         logger.error(f"[RANK] Błąd podczas aktualizacji rangi: {str(e)}", exc_info=True)
     
+    # Konwertuj dystans do jednostek użytkownika
+    user_settings = await UserSettingsService.get_settings(session, user)
+    distance_unit = user_settings.distance_unit or "m"
+    distance, unit = convert_distance(ss.distance_m, distance_unit)
+    
     return {
         "id": ss.id,
         "gun_id": ss.gun_id,
@@ -336,6 +380,8 @@ async def update_session(
         "cost": ss.cost,
         "notes": ss.notes,
         "distance_m": ss.distance_m,
+        "distance": distance,
+        "distance_unit": unit,
         "hits": ss.hits,
         "accuracy_percent": ss.accuracy_percent,
         "remaining_ammo": result.get("remaining_ammo")

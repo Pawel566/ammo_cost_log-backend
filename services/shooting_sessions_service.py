@@ -111,18 +111,23 @@ class ShootingSessionsService:
     def _apply_session_search(query, model, search: Optional[str]):
         if not search:
             return query
-        pattern = f"%{search.lower()}%"
-        query = query.join(Gun, model.gun_id == Gun.id).join(Ammo, model.ammo_id == Ammo.id)
-        conditions = [
-            func.lower(Gun.name).like(pattern),
-            func.lower(Ammo.name).like(pattern),
-            cast(model.date, String).like(pattern)
-        ]
-        if hasattr(model, "notes"):
-            conditions.append(func.lower(func.coalesce(model.notes, "")).like(pattern))
-        if hasattr(model, "ai_comment"):
-            conditions.append(func.lower(func.coalesce(model.ai_comment, "")).like(pattern))
-        return query.where(or_(*conditions))
+        try:
+            pattern = f"%{search.lower()}%"
+            query = query.join(Gun, model.gun_id == Gun.id).join(Ammo, model.ammo_id == Ammo.id)
+            conditions = [
+                func.lower(Gun.name).like(pattern),
+                func.lower(Ammo.name).like(pattern),
+                cast(model.date, String).like(pattern)
+            ]
+            if hasattr(model, "notes"):
+                conditions.append(func.lower(func.coalesce(model.notes, "")).like(pattern))
+            if hasattr(model, "ai_comment"):
+                conditions.append(func.lower(func.coalesce(model.ai_comment, "")).like(pattern))
+            return query.where(or_(*conditions))
+        except Exception as e:
+            logger.error(f"Błąd podczas aplikowania search: {e}", exc_info=True)
+            # Fallback: zwróć query bez search
+            return query
 
     @staticmethod
     def _get_gun(session: Session, gun_id: str, user: UserContext) -> Optional[Gun]:
@@ -173,14 +178,49 @@ class ShootingSessionsService:
                 pass
         
         query = ShootingSessionsService._apply_session_search(base_query, ShootingSession, search)
-        count_query = query.with_only_columns(func.count(ShootingSession.id)).order_by(None)
-
-        total = session.exec(count_query).one()
-        items = session.exec(
-            query.order_by(ShootingSession.date.desc())
-                 .offset(offset)
-                 .limit(limit)
-        ).all()
+        
+        # Dla SQLite, gdy mamy join (search), liczymy przez wykonanie query
+        if search:
+            # Gdy jest search, query ma join - wykonaj query i policz w Pythonie
+            try:
+                all_items = session.exec(query).all()
+                total = len(all_items)
+                items = sorted(all_items, key=lambda x: x.date, reverse=True)[offset:offset + limit]
+            except Exception as e:
+                logger.error(f"Błąd podczas wykonywania zapytania z search: {e}", exc_info=True)
+                return {"total": 0, "items": []}
+        else:
+            # Gdy nie ma search, użyj prostego count (dla kompatybilności z SQLite)
+            count_query = select(func.count(ShootingSession.id))
+            if user.role != UserRole.admin:
+                count_query = count_query.where(ShootingSession.user_id == user.user_id)
+                if user.is_guest:
+                    count_query = count_query.where(or_(ShootingSession.expires_at.is_(None), ShootingSession.expires_at > datetime.utcnow()))
+            if gun_id:
+                count_query = count_query.where(ShootingSession.gun_id == gun_id)
+            if date_from:
+                try:
+                    date_from_parsed = datetime.strptime(date_from, "%Y-%m-%d").date()
+                    count_query = count_query.where(ShootingSession.date >= date_from_parsed)
+                except ValueError:
+                    pass
+            if date_to:
+                try:
+                    date_to_parsed = datetime.strptime(date_to, "%Y-%m-%d").date()
+                    count_query = count_query.where(ShootingSession.date <= date_to_parsed)
+                except ValueError:
+                    pass
+            try:
+                total = session.exec(count_query).one()
+            except Exception as e:
+                logger.error(f"Błąd podczas liczenia sesji: {e}", exc_info=True)
+                total = 0
+            
+            items = session.exec(
+                query.order_by(ShootingSession.date.desc())
+                     .offset(offset)
+                     .limit(limit)
+            ).all()
 
         return {
             "total": total,

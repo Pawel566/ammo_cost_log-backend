@@ -53,7 +53,8 @@ class UserSettingsService:
                 low_ammo_notifications_enabled=True,
                 ai_analysis_intensity="normalna",
                 ai_auto_comments=False,
-                language="pl"
+                language="pl",
+                currency="pln"
             )
             if user.is_guest:
                 settings.expires_at = user.expires_at
@@ -75,6 +76,14 @@ class UserSettingsService:
             if language_value is None:
                 try:
                     settings.language = "pl"
+                    needs_save = True
+                except Exception:
+                    pass
+            
+            currency_value = getattr(settings, 'currency', None)
+            if currency_value is None:
+                try:
+                    settings.currency = "pln"
                     needs_save = True
                 except Exception:
                     pass
@@ -108,6 +117,8 @@ class UserSettingsService:
             settings.ai_auto_comments = data["ai_auto_comments"]
         if "language" in data:
             settings.language = data["language"]
+        if "currency" in data:
+            settings.currency = data["currency"]
         if user.is_guest:
             settings.expires_at = user.expires_at
         else:
