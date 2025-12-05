@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, Query, HTTPException
 from sqlmodel import Session
 from typing import List, Optional, Dict, Any
 from schemas.maintenance import MaintenanceCreate, MaintenanceUpdate, MaintenanceRead
@@ -6,16 +6,24 @@ from database import get_session
 from routers.auth import role_required
 from services.maintenance_service import MaintenanceService
 from services.user_context import UserContext, UserRole
+import logging
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
 @router.get("", response_model=List[Dict[str, Any]])
+@router.get("/", response_model=List[Dict[str, Any]])
 async def get_all_maintenance(
     session: Session = Depends(get_session),
     user: UserContext = Depends(role_required([UserRole.guest, UserRole.user, UserRole.admin])),
     gun_id: Optional[str] = Query(default=None)
 ):
-    return await MaintenanceService.list_all(session, user, gun_id)
+    try:
+        return await MaintenanceService.list_all(session, user, gun_id)
+    except Exception as e:
+        logger.error(f"Błąd podczas pobierania konserwacji: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Błąd podczas pobierania konserwacji: {str(e)}")
 
 @router.get("/guns/{gun_id}/maintenance", response_model=List[MaintenanceRead])
 async def get_gun_maintenance(
@@ -30,7 +38,11 @@ async def get_maintenance_statistics(
     session: Session = Depends(get_session),
     user: UserContext = Depends(role_required([UserRole.guest, UserRole.user, UserRole.admin]))
 ):
-    return await MaintenanceService.get_statistics(session, user)
+    try:
+        return await MaintenanceService.get_statistics(session, user)
+    except Exception as e:
+        logger.error(f"Błąd podczas pobierania statystyk konserwacji: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Błąd podczas pobierania statystyk konserwacji: {str(e)}")
 
 @router.post("/guns/{gun_id}/maintenance", response_model=MaintenanceRead)
 async def add_maintenance(

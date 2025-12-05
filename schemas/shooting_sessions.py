@@ -36,6 +36,8 @@ class ShootingSessionRead(BaseModel):
     cost: Optional[float] = Field(default=None, ge=0)
     notes: Optional[str] = None
     distance_m: Optional[float] = Field(default=None, gt=0)
+    distance: Optional[float] = Field(default=None, gt=0)  # Przeliczona wartość w jednostkach użytkownika
+    distance_unit: Optional[str] = Field(default=None, max_length=2)  # Jednostka dystansu (m lub yd)
     hits: Optional[int] = Field(default=None, ge=0)
     accuracy_percent: Optional[float] = Field(default=None, ge=0, le=100)
     ai_comment: Optional[str] = None

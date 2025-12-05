@@ -20,13 +20,26 @@ class UserSettingsService:
             existing_query = select(UserSettings).where(UserSettings.user_id == user.user_id)
             existing = await asyncio.to_thread(lambda: session.exec(existing_query).first())
             if existing:
+                needs_save = False
                 if user.is_guest:
                     existing.expires_at = user.expires_at
+                    needs_save = True
                 else:
                     existing.expires_at = None
-                session.add(existing)
-                await asyncio.to_thread(session.commit)
-                await asyncio.to_thread(session.refresh, existing)
+                    needs_save = True
+                
+                language_value = getattr(existing, 'language', None)
+                if language_value is None:
+                    try:
+                        existing.language = "pl"
+                        needs_save = True
+                    except Exception:
+                        pass
+                
+                if needs_save:
+                    session.add(existing)
+                    await asyncio.to_thread(session.commit)
+                    await asyncio.to_thread(session.refresh, existing)
                 return existing
             
             settings = UserSettings(
@@ -39,7 +52,9 @@ class UserSettingsService:
                 maintenance_notifications_enabled=True,
                 low_ammo_notifications_enabled=True,
                 ai_analysis_intensity="normalna",
-                ai_auto_comments=False
+                ai_auto_comments=False,
+                language="pl",
+                currency="pln"
             )
             if user.is_guest:
                 settings.expires_at = user.expires_at
@@ -49,13 +64,31 @@ class UserSettingsService:
             await asyncio.to_thread(session.commit)
             await asyncio.to_thread(session.refresh, settings)
         else:
+            needs_save = False
             if user.is_guest and settings.expires_at != user.expires_at:
                 settings.expires_at = user.expires_at
-                session.add(settings)
-                await asyncio.to_thread(session.commit)
-                await asyncio.to_thread(session.refresh, settings)
+                needs_save = True
             elif not user.is_guest and settings.expires_at is not None:
                 settings.expires_at = None
+                needs_save = True
+            
+            language_value = getattr(settings, 'language', None)
+            if language_value is None:
+                try:
+                    settings.language = "pl"
+                    needs_save = True
+                except Exception:
+                    pass
+            
+            currency_value = getattr(settings, 'currency', None)
+            if currency_value is None:
+                try:
+                    settings.currency = "pln"
+                    needs_save = True
+                except Exception:
+                    pass
+            
+            if needs_save:
                 session.add(settings)
                 await asyncio.to_thread(session.commit)
                 await asyncio.to_thread(session.refresh, settings)
@@ -82,6 +115,10 @@ class UserSettingsService:
             settings.ai_analysis_intensity = data["ai_analysis_intensity"]
         if "ai_auto_comments" in data:
             settings.ai_auto_comments = data["ai_auto_comments"]
+        if "language" in data:
+            settings.language = data["language"]
+        if "currency" in data:
+            settings.currency = data["currency"]
         if user.is_guest:
             settings.expires_at = user.expires_at
         else:

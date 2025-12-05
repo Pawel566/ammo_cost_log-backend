@@ -24,6 +24,8 @@ class UserSettingsBase(SQLModel):
     low_ammo_notifications_enabled: bool = Field(default=True)
     ai_analysis_intensity: str = Field(default="normalna", max_length=20)
     ai_auto_comments: bool = Field(default=False)
+    language: str = Field(default="pl", max_length=10)
+    currency: str = Field(default="pln", max_length=3)
 
 
 class UserSettings(UserSettingsBase, table=True):

@@ -13,6 +13,8 @@ class UserSettingsRead(BaseModel):
     low_ammo_notifications_enabled: bool
     ai_analysis_intensity: str
     ai_auto_comments: bool
+    language: str = "pl"
+    currency: str = "pln"
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -27,4 +29,6 @@ class UserSettingsUpdate(BaseModel):
     low_ammo_notifications_enabled: Optional[bool] = None
     ai_analysis_intensity: Optional[str] = Field(default=None, max_length=20)
     ai_auto_comments: Optional[bool] = None
+    language: Optional[str] = Field(default=None, max_length=10)
+    currency: Optional[str] = Field(default=None, max_length=3)
 
