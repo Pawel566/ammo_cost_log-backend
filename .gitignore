@@ -212,9 +212,29 @@ __marimo__/
 .venv/
 *.db
 venv
+dev.db
+*.db-journal
+
+# Alembic
+alembic/versions/__pycache__/
+
+# Environment variables
+.env
+.env.local
+.env.*.local
+
+# IDE
+.idea/
+.vscode/
+*.iml
+misc.xml
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
 
 # AI Assistant instructions
 AGENTS.md
-ammo_cost_log-backend.iml
-misc.xml
-.venv

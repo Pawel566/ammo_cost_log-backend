@@ -164,3 +164,4 @@ Uporządkowanie architektury backendu, usunięcie nieużywanego kodu, uproszczen
 4. **Migracje** - profesjonalne zarządzanie schematem bazy danych
 5. **Czytelność** - mniej pól, prostsze modele
 
+

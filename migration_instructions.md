@@ -66,3 +66,4 @@ alembic upgrade head
 - W środowisku produkcyjnym zawsze testuj migracje na kopii bazy danych
 - SQLite może mieć ograniczenia w niektórych operacjach migracji - dla produkcji zalecany jest PostgreSQL
 
+
