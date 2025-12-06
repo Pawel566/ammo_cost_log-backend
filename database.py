@@ -17,6 +17,11 @@ engine = create_engine(
     connect_args={"check_same_thread": False} if "sqlite" in DATABASE_URL else {}
 )
 
+def get_async_session() -> Generator[Session, None, None]:
+    """Unified function for getting database session"""
+    with Session(engine) as session:
+        yield session
+
 def init_db():
     SQLModel.metadata.create_all(engine)
     
@@ -63,5 +68,6 @@ def init_db():
         logging.warning(f"Could not add columns to maintenance: {e}")
 
 def get_session() -> Generator[Session, None, None]:
+    """Alias for get_async_session for backward compatibility"""
     with Session(engine) as session:
         yield session

@@ -1,12 +1,10 @@
 from sqlmodel import Session, select
 from typing import Optional
-import asyncio
-from datetime import datetime
 from sqlalchemy import or_, func
-from fastapi import HTTPException
 from models import Gun, GunUpdate
 from schemas.gun import GunCreate
 from services.user_context import UserContext, UserRole
+from services.exceptions import NotFoundError, BadRequestError
 
 
 class GunService:
@@ -16,8 +14,6 @@ class GunService:
         if user.role == UserRole.admin:
             return query
         query = query.where(Gun.user_id == user.user_id)
-        if user.is_guest:
-            query = query.where(or_(Gun.expires_at.is_(None), Gun.expires_at > datetime.utcnow()))
         return query
 
     @staticmethod
@@ -35,65 +31,56 @@ class GunService:
         )
 
     @staticmethod
-    async def _get_single_gun(session: Session, gun_id: str, user: UserContext) -> Gun:
+    def _get_single_gun(session: Session, gun_id: str, user: UserContext) -> Gun:
         query = GunService._query_for_user(user).where(Gun.id == gun_id)
-        gun = await asyncio.to_thread(lambda: session.exec(query).first())
+        gun = session.exec(query).first()
         if not gun:
-            raise HTTPException(status_code=404, detail="Broń nie została znaleziona")
+            raise NotFoundError("Broń nie została znaleziona")
         return gun
 
     @staticmethod
-    async def get_all_guns(session: Session, user: UserContext, limit: int, offset: int, search: Optional[str]) -> dict:
+    def get_all_guns(session: Session, user: UserContext, limit: int, offset: int, search: Optional[str]) -> dict:
         base_query = GunService._query_for_user(user)
         filtered_query = GunService._apply_search(base_query, search)
         count_query = filtered_query.with_only_columns(func.count(Gun.id)).order_by(None)
 
-        def _run():
-            total = session.exec(count_query).one()
-            items = session.exec(filtered_query.offset(offset).limit(limit)).all()
-            return total, items
-
-        total, items = await asyncio.to_thread(_run)
+        total = session.exec(count_query).one()
+        items = session.exec(filtered_query.offset(offset).limit(limit)).all()
         return {"total": total, "items": items}
 
     @staticmethod
-    async def get_gun_by_id(session: Session, gun_id: str, user: UserContext) -> Gun:
-        return await GunService._get_single_gun(session, gun_id, user)
+    def get_gun_by_id(session: Session, gun_id: str, user: UserContext) -> Gun:
+        return GunService._get_single_gun(session, gun_id, user)
 
     @staticmethod
-    async def create_gun(session: Session, gun_data: GunCreate, user: UserContext) -> Gun:
+    def create_gun(session: Session, gun_data: GunCreate, user: UserContext) -> Gun:
         payload = gun_data.model_dump()
         gun = Gun(**payload, user_id=user.user_id)
-        if user.is_guest:
-            gun.expires_at = user.expires_at
         session.add(gun)
-        await asyncio.to_thread(session.commit)
-        await asyncio.to_thread(session.refresh, gun)
+        session.commit()
+        session.refresh(gun)
         return gun
 
     @staticmethod
-    async def update_gun(session: Session, gun_id: str, gun_data: GunUpdate, user: UserContext) -> Gun:
-        gun = await GunService._get_single_gun(session, gun_id, user)
+    def update_gun(session: Session, gun_id: str, gun_data: GunUpdate, user: UserContext) -> Gun:
+        gun = GunService._get_single_gun(session, gun_id, user)
         gun_dict = gun_data.model_dump(exclude_unset=True)
         for key, value in gun_dict.items():
             setattr(gun, key, value)
-        if user.is_guest:
-            gun.expires_at = user.expires_at
-        elif gun.expires_at is not None and user.role != UserRole.admin:
-            gun.expires_at = None
         session.add(gun)
-        await asyncio.to_thread(session.commit)
-        await asyncio.to_thread(session.refresh, gun)
+        session.commit()
+        session.refresh(gun)
         return gun
 
     @staticmethod
     async def delete_gun(session: Session, gun_id: str, user: UserContext) -> dict:
-        gun = await GunService._get_single_gun(session, gun_id, user)
+        gun = GunService._get_single_gun(session, gun_id, user)
         
         # Usuń zdjęcie broni z Supabase jeśli istnieje
         if gun.image_path:
             try:
                 from services.supabase_service import delete_weapon_image
+                import asyncio
                 await asyncio.to_thread(delete_weapon_image, gun.image_path)
             except Exception as e:
                 # Nie blokuj usuwania broni, jeśli usunięcie zdjęcia się nie powiodło
@@ -102,18 +89,17 @@ class GunService:
                 logger.warning(f"Nie udało się usunąć zdjęcia broni z Supabase: {str(e)}")
         
         try:
-            await asyncio.to_thread(session.delete, gun)
-            await asyncio.to_thread(session.commit)
+            session.delete(gun)
+            session.commit()
             return {"message": f"Broń o ID {gun_id} została usunięta"}
         except Exception as e:
-            await asyncio.to_thread(session.rollback)
+            session.rollback()
             error_msg = str(e).lower()
             if "foreign key" in error_msg or "integrity" in error_msg:
-                raise HTTPException(
-                    status_code=400,
-                    detail="Nie można usunąć broni, ponieważ jest powiązana z sesjami strzeleckimi, konserwacją lub wyposażeniem. Najpierw usuń powiązane rekordy."
+                raise BadRequestError(
+                    "Nie można usunąć broni, ponieważ jest powiązana z sesjami strzeleckimi, konserwacją lub wyposażeniem. Najpierw usuń powiązane rekordy."
                 )
-            raise HTTPException(status_code=500, detail=f"Błąd podczas usuwania broni: {str(e)}")
+            raise BadRequestError(f"Błąd podczas usuwania broni: {str(e)}")
 
 
 

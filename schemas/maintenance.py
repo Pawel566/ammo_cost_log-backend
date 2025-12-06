@@ -23,7 +23,6 @@ class MaintenanceRead(MaintenanceCreate):
     id: str
     gun_id: str
     user_id: str
-    expires_at: Optional[datetime] = None
 
     model_config = ConfigDict(from_attributes=True)
 

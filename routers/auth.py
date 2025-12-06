@@ -133,7 +133,6 @@ async def get_user_context(
         user_id=guest_id,
         role=UserRole.guest,
         is_guest=True,
-        guest_session_id=guest_id,
         expires_at=expires_at
     )
 

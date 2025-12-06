@@ -1,7 +1,7 @@
 from enum import Enum
 from datetime import datetime, timedelta
-from typing import Optional, Any
-from pydantic import BaseModel
+from typing import Optional
+from pydantic import BaseModel, field_validator
 from settings import settings
 
 
@@ -15,14 +15,15 @@ class UserContext(BaseModel):
     user_id: str
     role: UserRole
     is_guest: bool = False
-    guest_session_id: Optional[str] = None
     expires_at: Optional[datetime] = None
-    email: Optional[str] = None
-    username: Optional[str] = None
 
-    def model_post_init(self, __context: Any) -> None:
-        if self.is_guest and self.expires_at is None:
-            self.expires_at = calculate_guest_expiration()
+    @field_validator('expires_at', mode='before')
+    @classmethod
+    def ensure_guest_expires_at(cls, v: Optional[datetime], info) -> Optional[datetime]:
+        """If is_guest=True, always generate expires_at"""
+        if info.data.get('is_guest', False) and v is None:
+            return calculate_guest_expiration()
+        return v
 
 
 def calculate_guest_expiration() -> datetime:

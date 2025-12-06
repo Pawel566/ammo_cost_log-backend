@@ -24,6 +24,5 @@ class ShootingSession(ShootingSessionBase, table=True):
     gun_id: str = Field(sa_column=Column(ForeignKey("guns.id", ondelete="CASCADE"), nullable=False))
     ammo_id: str = Field(sa_column=Column(ForeignKey("ammo.id", ondelete="CASCADE"), nullable=False))
     user_id: str = Field(index=True, max_length=64)
-    expires_at: Optional[datetime] = Field(default=None, nullable=True)
     gun: Optional["Gun"] = Relationship(back_populates="sessions", passive_deletes=True)
     ammo: Optional["Ammo"] = Relationship(back_populates="sessions", passive_deletes=True)

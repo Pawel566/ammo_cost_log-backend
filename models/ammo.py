@@ -39,7 +39,6 @@ class Ammo(AmmoBase, table=True):
     __tablename__ = "ammo"
     id: str = Field(default_factory=lambda: str(uuid4()), primary_key=True)
     user_id: str = Field(index=True, max_length=64)
-    expires_at: Optional[datetime] = Field(default=None, nullable=True)
     type: Optional[AmmoType] = Field(default=None, sa_column=Column(SQLEnum(AmmoType, name="ammo_type_enum"), nullable=True))
     sessions: List["ShootingSession"] = Relationship(back_populates="ammo", passive_deletes=True)
 

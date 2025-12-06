@@ -15,7 +15,6 @@ class AmmoCreate(BaseModel):
 class AmmoRead(AmmoCreate):
     id: str
     user_id: str
-    expires_at: Optional[datetime] = None
 
     model_config = ConfigDict(from_attributes=True)
 

@@ -44,7 +44,6 @@ class ShootingSessionRead(BaseModel):
     session_type: Optional[str] = Field(default='standard', max_length=20)
     target_image_path: Optional[str] = None
     user_id: Optional[str] = None
-    expires_at: Optional[datetime] = None
 
     model_config = ConfigDict(from_attributes=True)
 

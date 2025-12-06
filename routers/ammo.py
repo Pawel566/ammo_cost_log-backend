@@ -23,7 +23,7 @@ async def get_ammo(
     offset: int = Query(0, ge=0),
     search: Optional[str] = Query(default=None, min_length=1)
 ):
-    return await AmmoService.get_all_ammo(session, user, limit, offset, search)
+    return AmmoService.get_all_ammo(session, user, limit, offset, search)
 
 @router.get("/{ammo_id}", response_model=AmmoRead)
 async def get_ammo_by_id(
@@ -31,7 +31,7 @@ async def get_ammo_by_id(
     session: Session = Depends(get_session),
     user: UserContext = Depends(role_required([UserRole.guest, UserRole.user, UserRole.admin]))
 ):
-    return await AmmoService.get_ammo_by_id(session, ammo_id, user)
+    return AmmoService.get_ammo_by_id(session, ammo_id, user)
 
 @router.post("", response_model=AmmoRead)
 async def add_ammo(
@@ -39,7 +39,7 @@ async def add_ammo(
     session: Session = Depends(get_session),
     user: UserContext = Depends(role_required([UserRole.guest, UserRole.user, UserRole.admin]))
 ):
-    return await AmmoService.create_ammo(session, ammo_data, user)
+    return AmmoService.create_ammo(session, ammo_data, user)
 
 @router.put("/{ammo_id}", response_model=AmmoRead)
 async def update_ammo(
@@ -48,7 +48,7 @@ async def update_ammo(
     session: Session = Depends(get_session),
     user: UserContext = Depends(role_required([UserRole.guest, UserRole.user, UserRole.admin]))
 ):
-    return await AmmoService.update_ammo(session, ammo_id, ammo_data, user)
+    return AmmoService.update_ammo(session, ammo_id, ammo_data, user)
 
 @router.delete("/{ammo_id}")
 async def delete_ammo(
@@ -56,7 +56,7 @@ async def delete_ammo(
     session: Session = Depends(get_session),
     user: UserContext = Depends(role_required([UserRole.guest, UserRole.user, UserRole.admin]))
 ):
-    return await AmmoService.delete_ammo(session, ammo_id, user)
+    return AmmoService.delete_ammo(session, ammo_id, user)
 
 @router.post("/{ammo_id}/add", response_model=AmmoRead)
 async def add_ammo_quantity(
@@ -65,4 +65,4 @@ async def add_ammo_quantity(
     session: Session = Depends(get_session),
     user: UserContext = Depends(role_required([UserRole.guest, UserRole.user, UserRole.admin]))
 ):
-    return await AmmoService.add_ammo_quantity(session, ammo_id, payload.amount, user)
+    return AmmoService.add_ammo_quantity(session, ammo_id, payload.amount, user)

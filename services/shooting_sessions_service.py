@@ -50,11 +50,6 @@ class SessionValidationService:
             raise HTTPException(status_code=404, detail="Amunicja nie została znaleziona")
         if gun.user_id != ammo.user_id:
             raise HTTPException(status_code=400, detail="Wybrana broń i amunicja należą do różnych użytkowników")
-        current_time = datetime.utcnow()
-        if gun.expires_at and gun.expires_at <= current_time:
-            raise HTTPException(status_code=404, detail="Broń nie została znaleziona")
-        if ammo.expires_at and ammo.expires_at <= current_time:
-            raise HTTPException(status_code=404, detail="Amunicja nie została znaleziona")
         if not SessionValidationService.validate_ammo_gun_compatibility(ammo, gun):
             raise HTTPException(
                 status_code=400,
@@ -103,8 +98,6 @@ class ShootingSessionsService:
         if user.role == UserRole.admin:
             return query
         query = query.where(model.user_id == user.user_id)
-        if user.is_guest and hasattr(model, "expires_at"):
-            query = query.where(or_(model.expires_at.is_(None), model.expires_at > datetime.utcnow()))
         return query
 
     @staticmethod
@@ -134,8 +127,6 @@ class ShootingSessionsService:
         query = select(Gun).where(Gun.id == gun_id)
         if user.role != UserRole.admin:
             query = query.where(Gun.user_id == user.user_id)
-            if user.is_guest:
-                query = query.where(or_(Gun.expires_at.is_(None), Gun.expires_at > datetime.utcnow()))
         return session.exec(query).first()
 
     @staticmethod
@@ -143,8 +134,6 @@ class ShootingSessionsService:
         query = select(Ammo).where(Ammo.id == ammo_id)
         if user.role != UserRole.admin:
             query = query.where(Ammo.user_id == user.user_id)
-            if user.is_guest:
-                query = query.where(or_(Ammo.expires_at.is_(None), Ammo.expires_at > datetime.utcnow()))
         return session.exec(query).first()
 
     @staticmethod
@@ -194,8 +183,6 @@ class ShootingSessionsService:
             count_query = select(func.count(ShootingSession.id))
             if user.role != UserRole.admin:
                 count_query = count_query.where(ShootingSession.user_id == user.user_id)
-                if user.is_guest:
-                    count_query = count_query.where(or_(ShootingSession.expires_at.is_(None), ShootingSession.expires_at > datetime.utcnow()))
             if gun_id:
                 count_query = count_query.where(ShootingSession.gun_id == gun_id)
             if date_from:
@@ -249,14 +236,6 @@ class ShootingSessionsService:
             accuracy_percent = SessionCalculationService.calculate_accuracy(hits, data.shots)
         
         ammo.units_in_package -= data.shots
-        target_expiration = user.expires_at if user.is_guest else gun.expires_at
-        
-        if user.is_guest:
-            ammo.expires_at = target_expiration
-            gun.expires_at = target_expiration
-        elif user.role != UserRole.admin:
-            ammo.expires_at = None
-            gun.expires_at = None
         
         new_session = ShootingSession(
             gun_id=data.gun_id,
@@ -270,8 +249,7 @@ class ShootingSessionsService:
             accuracy_percent=accuracy_percent,
             ai_comment=None,
             session_type=data.session_type if hasattr(data, 'session_type') and data.session_type else 'standard',
-            user_id=gun.user_id,
-            expires_at=target_expiration
+            user_id=gun.user_id
         )
         
         session.add(new_session)
@@ -279,7 +257,7 @@ class ShootingSessionsService:
         session.add(gun)
         session.commit()
         session.refresh(new_session)
-        await MaintenanceService.update_last_maintenance_rounds(session, user, data.gun_id)
+        MaintenanceService.update_last_maintenance_rounds(session, user, data.gun_id)
         
         return {
             "session": new_session,
@@ -340,9 +318,6 @@ class ShootingSessionsService:
         if user.role != UserRole.admin:
             if ss.user_id != user.user_id:
                 raise HTTPException(status_code=404, detail="Session not found")
-            if user.is_guest:
-                if ss.expires_at and ss.expires_at <= datetime.utcnow():
-                    raise HTTPException(status_code=404, detail="Session not found")
 
         update_dict = data.model_dump(exclude_unset=True)
         
@@ -503,9 +478,6 @@ class ShootingSessionsService:
         if user.role != UserRole.admin:
             if ss.user_id != user.user_id:
                 raise HTTPException(status_code=404, detail="Session not found")
-            if user.is_guest:
-                if ss.expires_at and ss.expires_at <= datetime.utcnow():
-                    raise HTTPException(status_code=404, detail="Session not found")
 
         # Usuń zdjęcie tarczy z Supabase jeśli istnieje
         if ss.target_image_path:

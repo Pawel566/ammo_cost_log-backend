@@ -15,7 +15,6 @@ class AttachmentRead(AttachmentCreate):
     gun_id: str
     user_id: str
     added_at: datetime
-    expires_at: Optional[datetime] = None
 
     model_config = ConfigDict(from_attributes=True)
 
