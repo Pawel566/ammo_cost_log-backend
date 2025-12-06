@@ -165,3 +165,4 @@ Uporządkowanie architektury backendu, usunięcie nieużywanego kodu, uproszczen
 5. **Czytelność** - mniej pól, prostsze modele
 
 
+

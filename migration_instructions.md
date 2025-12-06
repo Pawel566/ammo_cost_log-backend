@@ -67,3 +67,4 @@ alembic upgrade head
 - SQLite może mieć ograniczenia w niektórych operacjach migracji - dla produkcji zalecany jest PostgreSQL
 
 
+

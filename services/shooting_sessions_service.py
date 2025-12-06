@@ -77,6 +77,22 @@ class SessionCalculationService:
         return round((hits / shots) * 100, 2)
 
     @staticmethod
+    def calculate_final_score(group_cm: Optional[float], distance_m: Optional[float], hits: Optional[int], shots: int) -> Optional[float]:
+        if not hits or not shots or shots <= 0:
+            return None
+        
+        accuracy = hits / shots
+        
+        if group_cm and distance_m and distance_m > 0:
+            moa = (group_cm / distance_m) * 34.38
+            effective_moa = moa * distance_m / 100
+            precision = max(0, 1 - (effective_moa / 10))
+            final = (accuracy * 0.4) + (precision * 0.6)
+            return round(final * 100, 2)
+        
+        return round(accuracy * 100, 2)
+
+    @staticmethod
     def parse_date(date_value: Optional[Union[str, date]]) -> date:
         if not date_value:
             return date.today()
@@ -235,6 +251,14 @@ class ShootingSessionsService:
         if hits is not None and data.shots > 0:
             accuracy_percent = SessionCalculationService.calculate_accuracy(hits, data.shots)
         
+        group_cm = data.group_cm if hasattr(data, 'group_cm') and data.group_cm is not None else None
+        final_score = SessionCalculationService.calculate_final_score(
+            group_cm, 
+            data.distance_m if data.distance_m is not None else None,
+            hits,
+            data.shots
+        )
+        
         ammo.units_in_package -= data.shots
         
         new_session = ShootingSession(
@@ -246,7 +270,9 @@ class ShootingSessionsService:
             notes=data.notes,
             distance_m=data.distance_m if data.distance_m is not None else None,
             hits=data.hits if data.hits is not None else None,
+            group_cm=group_cm,
             accuracy_percent=accuracy_percent,
+            final_score=final_score,
             ai_comment=None,
             session_type=data.session_type if hasattr(data, 'session_type') and data.session_type else 'standard',
             user_id=gun.user_id
@@ -416,6 +442,10 @@ class ShootingSessionsService:
             if update_dict["hits"] is None:
                 del update_dict["hits"]
 
+        if "group_cm" in update_dict:
+            if update_dict["group_cm"] is None:
+                del update_dict["group_cm"]
+
         if "shots" in update_dict:
             if update_dict["shots"] is None:
                 del update_dict["shots"]
@@ -427,12 +457,20 @@ class ShootingSessionsService:
         final_distance_m = update_dict.get("distance_m", ss.distance_m)
         final_hits = update_dict.get("hits", ss.hits)
         final_shots = update_dict.get("shots", ss.shots)
+        final_group_cm = update_dict.get("group_cm", ss.group_cm if hasattr(ss, 'group_cm') else None)
 
         if final_distance_m is not None and final_hits is not None and final_shots and final_shots > 0:
             update_dict["accuracy_percent"] = SessionCalculationService.calculate_accuracy(final_hits, final_shots)
-        elif "distance_m" in update_dict or "hits" in update_dict:
+            update_dict["final_score"] = SessionCalculationService.calculate_final_score(
+                final_group_cm,
+                final_distance_m,
+                final_hits,
+                final_shots
+            )
+        elif "distance_m" in update_dict or "hits" in update_dict or "group_cm" in update_dict:
             if final_distance_m is None or final_hits is None:
                 update_dict["accuracy_percent"] = None
+                update_dict["final_score"] = None
 
         if "cost" not in update_dict and ("shots" in update_dict or "ammo_id" in update_dict):
             if "ammo_id" in update_dict:

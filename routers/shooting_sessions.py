@@ -71,7 +71,9 @@ async def create_session_read(session_obj: ShootingSession, db_session: Session,
         distance=distance,  # Przeliczona wartość
         distance_unit=unit,  # Jednostka przeliczona
         hits=session_obj.hits,
+        group_cm=session_obj.group_cm if hasattr(session_obj, 'group_cm') else None,
         accuracy_percent=session_obj.accuracy_percent,
+        final_score=session_obj.final_score if hasattr(session_obj, 'final_score') else None,
         ai_comment=session_obj.ai_comment,
         session_type=session_obj.session_type if hasattr(session_obj, 'session_type') else 'standard',
         target_image_path=session_obj.target_image_path if hasattr(session_obj, 'target_image_path') else None,

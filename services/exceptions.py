@@ -16,3 +16,4 @@ class BadRequestError(HTTPException):
         super().__init__(status_code=400, detail=detail)
 
 
+

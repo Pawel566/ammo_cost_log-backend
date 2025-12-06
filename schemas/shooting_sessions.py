@@ -12,6 +12,7 @@ class ShootingSessionCreate(BaseModel):
     notes: Optional[str] = None
     distance_m: Optional[float] = Field(default=None, gt=0)
     hits: Optional[int] = Field(default=None, ge=0)
+    group_cm: Optional[float] = Field(default=None, gt=0)
     session_type: Optional[str] = Field(default='standard', max_length=20)  # 'standard' or 'advanced'
 
 
@@ -21,6 +22,7 @@ class ShootingSessionUpdate(BaseModel):
     ammo_id: Optional[str] = None
     shots: Optional[int] = Field(default=None, gt=0)
     hits: Optional[int] = Field(default=None, ge=0)
+    group_cm: Optional[float] = Field(default=None, gt=0)
     distance_m: Optional[float] = Field(default=None, gt=0)
     cost: Optional[float] = Field(default=None, ge=0)
     notes: Optional[str] = None
@@ -39,7 +41,9 @@ class ShootingSessionRead(BaseModel):
     distance: Optional[float] = Field(default=None, gt=0)  # Przeliczona wartość w jednostkach użytkownika
     distance_unit: Optional[str] = Field(default=None, max_length=2)  # Jednostka dystansu (m lub yd)
     hits: Optional[int] = Field(default=None, ge=0)
+    group_cm: Optional[float] = Field(default=None, gt=0)
     accuracy_percent: Optional[float] = Field(default=None, ge=0, le=100)
+    final_score: Optional[float] = Field(default=None, ge=0, le=100)
     ai_comment: Optional[str] = None
     session_type: Optional[str] = Field(default='standard', max_length=20)
     target_image_path: Optional[str] = None
