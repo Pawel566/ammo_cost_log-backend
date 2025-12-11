@@ -273,3 +273,60 @@ htmlcov/
 # Scripts output
 update_database.pyc
 update_database.sql
+
+# Additional database files
+*.db-journal
+*.db-wal
+*.db-shm
+
+# Migration files (keep versions, ignore cache)
+alembic/versions/__pycache__/
+
+# Render deployment
+.render/
+
+# Docker
+.dockerignore
+
+# Local configuration
+config.local.py
+settings.local.py
+
+# Backup files
+*.bak
+*.backup
+*.orig
+
+# Temporary Python files
+*.py[cod]
+*.pyc
+*.pyo
+*.pyd
+.Python
+
+# Jupyter Notebook checkpoints
+.ipynb_checkpoints
+
+# pytest
+.pytest_cache/
+.tox/
+.coverage
+htmlcov/
+
+# mypy
+.mypy_cache/
+.dmypy.json
+dmypy.json
+
+# Ruff
+.ruff_cache/
+
+# Coverage reports
+.coverage.*
+coverage.xml
+*.cover
+*.py.cover
+.hypothesis/
+
+# Profiling data
+.prof

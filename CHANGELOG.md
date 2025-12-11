@@ -1,5 +1,23 @@
 # Changelog
 
+## [0.6.8] – 2025-12-11
+### Dodano
+- Ikony rang dla pierwszych 6 poziomów (Nowicjusz, Adepciak, Stabilny Strzelec, Celny Strzelec, Precyzyjny Strzelec, Zaawansowany Strzelec)
+- Walidacja wartości dla pól `precision_help`, `recoil_reduction`, `ergonomics` w dodatkach (dozwolone: none, low, medium, high)
+- Walidacja daty w przyszłości dla sesji strzeleckich i daty utworzenia broni
+- Walidacja maksymalnych wartości dla pól numerycznych (ceny, ilości, strzały, odległości, grupy)
+
+### Zmieniono
+- Zmieniono "jakość sesji" na "punktacja końcowa" w interfejsie
+- Ujednolicono `min_length` dla nazw broni i amunicji (schema i model: 2 znaki)
+- Rozszerzono walidacje w `rank_service.py` z obsługą błędów i logowaniem
+- Dodano walidację poprawności rang w bazie danych i automatyczną korekcję niepoprawnych wartości
+
+### Naprawiono
+- Naprawiono niezgodności walidacji między schematami a modelami
+- Dodano walidację indeksów rang i obsługę błędów w funkcjach rang
+- Poprawiono walidację accuracy w zakresie 0-100% w `count_passed_sessions`
+
 ## [0.6.5] – 2025-12-04
 ### Dodano
 - System obsługi kursów walut z integracją API NBP (USD, EUR, GBP)
