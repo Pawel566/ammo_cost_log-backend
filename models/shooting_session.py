@@ -7,12 +7,12 @@ from datetime import date as Date, datetime
 
 class ShootingSessionBase(SQLModel):
     date: Date
-    shots: int = Field(gt=0)
-    cost: Optional[float] = Field(default=None, ge=0)
+    shots: int = Field(gt=0, le=100000)  # Maksymalna liczba strzałów: 100,000
+    cost: Optional[float] = Field(default=None, ge=0, le=1000000)  # Maksymalny koszt: 1,000,000
     notes: Optional[str] = Field(default=None, max_length=500)
-    distance_m: Optional[float] = Field(default=None, gt=0)
-    hits: Optional[int] = Field(default=None, ge=0)
-    group_cm: Optional[float] = Field(default=None, gt=0)
+    distance_m: Optional[float] = Field(default=None, gt=0, le=10000)  # Maksymalna odległość: 10,000m
+    hits: Optional[int] = Field(default=None, ge=0, le=100000)  # Maksymalna liczba trafień: 100,000
+    group_cm: Optional[float] = Field(default=None, gt=0, le=10000)  # Maksymalna grupa: 10,000cm
     accuracy_percent: Optional[float] = Field(default=None, ge=0, le=100)
     final_score: Optional[float] = Field(default=None, ge=0, le=100)
     ai_comment: Optional[str] = Field(default=None, max_length=1000)

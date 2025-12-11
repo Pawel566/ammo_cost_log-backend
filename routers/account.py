@@ -68,7 +68,12 @@ async def get_rank(
     # Zapewnij, że użytkownik istnieje w bazie
     user_record = await asyncio.to_thread(lambda: AccountService.ensure_user_exists(session, user))
     
-    if not hasattr(user_record, 'rank') or user_record.rank is None:
+    if not user_record:
+        from fastapi import HTTPException
+        raise HTTPException(status_code=404, detail="Użytkownik nie został znaleziony")
+    
+    # Walidacja i ustawienie domyślnej rangi jeśli brak
+    if not hasattr(user_record, 'rank') or user_record.rank is None or user_record.rank.strip() == "":
         user_record.rank = "Nowicjusz"
         session.add(user_record)
         await asyncio.to_thread(lambda: session.commit())

@@ -7,21 +7,25 @@ from enum import Enum
 
 
 class AttachmentType(str, Enum):
-    optic = "optic"
-    light = "light"
-    laser = "laser"
+    red_dot = "red_dot"
+    reflex = "reflex"
+    lpvo = "lpvo"
+    magnifier = "magnifier"
     suppressor = "suppressor"
-    bipod = "bipod"
     compensator = "compensator"
-    grip = "grip"
-    trigger = "trigger"
-    other = "other"
+    foregrip = "foregrip"
+    angled_grip = "angled_grip"
+    bipod = "bipod"
+    tactical_light = "tactical_light"
 
 
 class AttachmentBase(SQLModel):
     type: AttachmentType
     name: str = Field(min_length=1, max_length=100)
     notes: Optional[str] = Field(default=None, max_length=500)
+    precision_help: str = Field(default="none", max_length=20)  # Dozwolone: none, low, medium, high
+    recoil_reduction: str = Field(default="none", max_length=20)  # Dozwolone: none, low, medium, high
+    ergonomics: str = Field(default="none", max_length=20)  # Dozwolone: none, low, medium, high
     added_at: datetime = Field(default_factory=datetime.utcnow)
 
 

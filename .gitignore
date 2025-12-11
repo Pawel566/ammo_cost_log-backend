@@ -215,7 +215,7 @@ venv
 dev.db
 *.db-journal
 
-# Alembic
+# Alembic - tylko cache, nie cały katalog!
 alembic/versions/__pycache__/
 
 # Environment variables
@@ -238,3 +238,38 @@ Thumbs.db
 
 # AI Assistant instructions
 AGENTS.md
+
+# Temporary files
+*.tmp
+*.temp
+*.swp
+*.swo
+*~
+
+# Database files (local development)
+*.sqlite
+*.sqlite3
+*.db-shm
+*.db-wal
+
+# Test coverage
+.coverage
+htmlcov/
+.pytest_cache/
+.tox/
+
+# Backup files
+*.bak
+*.backup
+*~
+
+# Python specific
+*.py[cod]
+*.pyc
+*.pyo
+*.pyd
+.Python
+
+# Scripts output
+update_database.pyc
+update_database.sql

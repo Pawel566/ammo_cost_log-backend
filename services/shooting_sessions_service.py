@@ -4,7 +4,7 @@ from datetime import date, datetime
 from collections import defaultdict
 from sqlalchemy import or_, func, cast, String, not_
 from fastapi import HTTPException
-from models import ShootingSession, Ammo, Gun
+from models import ShootingSession, Ammo, Gun, AmmoCategory
 import logging
 from services.user_context import UserContext, UserRole
 from services.maintenance_service import MaintenanceService
@@ -43,6 +43,35 @@ class SessionValidationService:
         return False
 
     @staticmethod
+    def validate_ammo_category_gun_type_compatibility(ammo: Ammo, gun: Gun) -> bool:
+        """Sprawdza czy kategoria amunicji pasuje do typu broni"""
+        if not ammo.category or not gun.type:
+            return True
+        
+        normalized_gun_type = gun.type.lower().strip()
+        ammo_category = ammo.category.value.lower() if isinstance(ammo.category, AmmoCategory) else str(ammo.category).lower()
+        
+        # Mapowanie typów broni na kategorie amunicji
+        # Pistolet / Pistolet maszynowy
+        if normalized_gun_type in ['pistol', 'pistolet', 'pistolet maszynowy'] or 'pcc' in normalized_gun_type or 'pm' in normalized_gun_type or 'pdw' in normalized_gun_type:
+            return ammo_category in ['pistol', 'other']
+        
+        # Rewolwer
+        if normalized_gun_type in ['rewolwer', 'revolver']:
+            return ammo_category in ['revolver', 'other']
+        
+        # Karabinek / Karabin
+        if normalized_gun_type in ['karabinek', 'carbine', 'karabin', 'rifle'] or 'ar-15' in normalized_gun_type or 'ak' in normalized_gun_type or 'grot' in normalized_gun_type or 'mcx' in normalized_gun_type or 'bolt-action' in normalized_gun_type or 'dmr' in normalized_gun_type:
+            return ammo_category in ['rifle', 'other']
+        
+        # Strzelba
+        if normalized_gun_type in ['shotgun', 'strzelba']:
+            return ammo_category in ['shotgun', 'other']
+        
+        # Inna - wszystkie kategorie dozwolone
+        return True
+
+    @staticmethod
     def validate_session_data(gun: Gun, ammo: Ammo, shots: int, hits: Optional[int] = None) -> None:
         if not gun:
             raise HTTPException(status_code=404, detail="Broń nie została znaleziona")
@@ -50,6 +79,13 @@ class SessionValidationService:
             raise HTTPException(status_code=404, detail="Amunicja nie została znaleziona")
         if gun.user_id != ammo.user_id:
             raise HTTPException(status_code=400, detail="Wybrana broń i amunicja należą do różnych użytkowników")
+        if not SessionValidationService.validate_ammo_category_gun_type_compatibility(ammo, gun):
+            gun_type_display = gun.type or "nieokreślony"
+            ammo_category_display = ammo.category.value if isinstance(ammo.category, AmmoCategory) else str(ammo.category) if ammo.category else "nieokreślona"
+            raise HTTPException(
+                status_code=400,
+                detail=f"Kategoria amunicji '{ammo_category_display}' nie pasuje do typu broni '{gun_type_display}'"
+            )
         if not SessionValidationService.validate_ammo_gun_compatibility(ammo, gun):
             raise HTTPException(
                 status_code=400,
@@ -93,18 +129,28 @@ class SessionCalculationService:
         return round(accuracy * 100, 2)
 
     @staticmethod
-    def parse_date(date_value: Optional[Union[str, date]]) -> date:
+    def parse_date(date_value: Optional[Union[str, date]], allow_future: bool = False) -> date:
         if not date_value:
             return date.today()
         if isinstance(date_value, date):
-            return date_value
-        try:
-            return datetime.strptime(date_value, "%Y-%m-%d").date()
-        except ValueError:
+            parsed_date = date_value
+        else:
+            try:
+                parsed_date = datetime.strptime(date_value, "%Y-%m-%d").date()
+            except ValueError:
+                raise HTTPException(
+                    status_code=400,
+                    detail="Data musi być w formacie YYYY-MM-DD (np. 2025-10-23)"
+                )
+        
+        # Walidacja: data nie może być w przyszłości (chyba że allow_future=True)
+        if not allow_future and parsed_date > date.today():
             raise HTTPException(
                 status_code=400,
-                detail="Data musi być w formacie YYYY-MM-DD (np. 2025-10-23)"
+                detail="Data sesji nie może być w przyszłości"
             )
+        
+        return parsed_date
 
 
 class ShootingSessionsService:
@@ -236,7 +282,7 @@ class ShootingSessionsService:
         user: UserContext,
         data: Any
     ) -> Dict[str, Any]:
-        parsed_date = SessionCalculationService.parse_date(data.date)
+        parsed_date = SessionCalculationService.parse_date(data.date, allow_future=False)
         gun = ShootingSessionsService._get_gun(session, data.gun_id, user)
         ammo = ShootingSessionsService._get_ammo(session, data.ammo_id, user)
         
@@ -356,7 +402,7 @@ class ShootingSessionsService:
 
         if "date" in update_dict:
             if isinstance(update_dict["date"], str):
-                update_dict["date"] = SessionCalculationService.parse_date(update_dict["date"])
+                update_dict["date"] = SessionCalculationService.parse_date(update_dict["date"], allow_future=False)
             elif update_dict["date"] is None:
                 del update_dict["date"]
 

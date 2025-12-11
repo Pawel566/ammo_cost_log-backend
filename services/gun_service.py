@@ -54,7 +54,20 @@ class GunService:
 
     @staticmethod
     def create_gun(session: Session, gun_data: GunCreate, user: UserContext) -> Gun:
-        payload = gun_data.model_dump()
+        from datetime import date
+        from services.exceptions import BadRequestError
+        payload = gun_data.model_dump(exclude_unset=True)
+        # Jeśli created_at nie jest podane, użyj dzisiejszej daty
+        if 'created_at' not in payload or payload['created_at'] is None:
+            payload['created_at'] = date.today()
+        else:
+            # Walidacja: data utworzenia nie może być w przyszłości
+            created_at = payload['created_at']
+            if isinstance(created_at, str):
+                from datetime import datetime
+                created_at = datetime.strptime(created_at, "%Y-%m-%d").date()
+            if created_at > date.today():
+                raise BadRequestError("Data utworzenia broni nie może być w przyszłości")
         gun = Gun(**payload, user_id=user.user_id)
         session.add(gun)
         session.commit()

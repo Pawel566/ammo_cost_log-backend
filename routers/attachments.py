@@ -26,6 +26,14 @@ async def add_attachment(
 ):
     return AttachmentsService.create_attachment(session, user, gun_id, attachment_data.model_dump())
 
+@router.get("/attachments/{attachment_id}", response_model=AttachmentRead)
+async def get_attachment(
+    attachment_id: str,
+    session: Session = Depends(get_session),
+    user: UserContext = Depends(role_required([UserRole.guest, UserRole.user, UserRole.admin]))
+):
+    return AttachmentsService.get_attachment_by_id(session, user, attachment_id)
+
 @router.delete("/attachments/{attachment_id}")
 async def delete_attachment(
     attachment_id: str,

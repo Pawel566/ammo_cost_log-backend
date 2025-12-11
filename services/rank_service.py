@@ -63,6 +63,10 @@ def count_passed_sessions(user: User, db: Session) -> int:
     - jeśli brak accuracy_percent, ale są hits + shots → liczy accuracy,
     - sesja liczy się, jeśli accuracy >= wymagany próg dla skill_level.
     """
+    if not user or not user.user_id:
+        logger.error("[RANK] Brak użytkownika lub user_id")
+        return 0
+    
     required_accuracy = _get_required_accuracy(user.skill_level)
     logger.info(f"[RANK] Liczenie zaliczonych sesji dla użytkownika {user.user_id}, skill_level={user.skill_level}, wymagana celność={required_accuracy}%")
 
@@ -85,12 +89,19 @@ def count_passed_sessions(user: User, db: Session) -> int:
                 logger.debug(f"[RANK] Sesja {s.id}: obliczono accuracy={accuracy}% z hits={s.hits}, shots={s.shots}")
 
         if accuracy is not None:
+            # Walidacja: accuracy powinno być między 0 a 100
+            if accuracy < 0 or accuracy > 100:
+                logger.warning(f"[RANK] Sesja {s.id}: nieprawidłowa wartość accuracy={accuracy}%, pomijana")
+                continue
+            
             logger.debug(f"[RANK] Sesja {s.id}: accuracy={accuracy}%, wymagana={required_accuracy}%, zaliczona={accuracy >= required_accuracy}")
             if accuracy >= required_accuracy:
                 passed_count += 1
         else:
             logger.debug(f"[RANK] Sesja {s.id}: brak accuracy (hits={s.hits}, shots={s.shots}), pomijana")
 
+    # Upewnij się, że wynik nie jest ujemny
+    passed_count = max(0, passed_count)
     logger.info(f"[RANK] Użytkownik {user.user_id}: {passed_count} zaliczonych sesji z {len(sessions)} wszystkich")
     return passed_count
 
@@ -99,18 +110,41 @@ def get_rank_name(passed_sessions: int) -> str:
     """
     Zwraca nazwę rangi dla danej liczby zaliczonych sesji.
     """
+    if passed_sessions < 0:
+        logger.warning(f"[RANK] Ujemna liczba sesji: {passed_sessions}, zwracam 'Nowicjusz'")
+        return "Nowicjusz"
+    
     for min_s, max_s, name in RANKS:
         if min_s <= passed_sessions <= max_s:
             return name
     # Bezpieczny fallback
+    logger.warning(f"[RANK] Nie znaleziono rangi dla {passed_sessions} sesji, zwracam 'Nowicjusz'")
     return "Nowicjusz"
 
 
 def _find_rank_index_by_name(rank_name: str) -> int:
+    """
+    Znajduje indeks rangi po nazwie. Zwraca 0 (Nowicjusz) jeśli nie znajdzie.
+    """
+    if not rank_name:
+        logger.warning(f"[RANK] Pusta nazwa rangi, zwracam indeks 0 (Nowicjusz)")
+        return 0
+    
     for i, (_, _, name) in enumerate(RANKS):
         if name == rank_name:
             return i
+    
+    logger.warning(f"[RANK] Nie znaleziono rangi '{rank_name}', zwracam indeks 0 (Nowicjusz)")
     return 0
+
+
+def is_valid_rank_name(rank_name: str) -> bool:
+    """
+    Sprawdza czy nazwa rangi jest poprawna (istnieje w liście RANKS).
+    """
+    if not rank_name:
+        return False
+    return _find_rank_index_by_name(rank_name) >= 0
 
 
 def update_user_rank(user: User, db: Session) -> str:
@@ -118,10 +152,28 @@ def update_user_rank(user: User, db: Session) -> str:
     Przelicza liczbę zaliczonych sesji, wyznacza rangę i zapisuje ją w user.rank,
     jeśli się zmieniła. Zwraca aktualną nazwę rangi.
     """
+    if not user:
+        logger.error("[RANK] Brak użytkownika w update_user_rank")
+        return "Nowicjusz"
+    
     passed = count_passed_sessions(user, db)
     new_rank = get_rank_name(passed)
 
-    if user.rank != new_rank:
+    # Walidacja: sprawdź czy nowa ranga jest poprawna
+    rank_index = _find_rank_index_by_name(new_rank)
+    if rank_index < 0 or rank_index >= len(RANKS):
+        logger.error(f"[RANK] Nieprawidłowa ranga '{new_rank}', ustawiam 'Nowicjusz'")
+        new_rank = "Nowicjusz"
+
+    # Sprawdź czy ranga w bazie jest poprawna (może być niepoprawna z powodu błędów w danych)
+    current_rank_index = _find_rank_index_by_name(user.rank or "Nowicjusz")
+    if current_rank_index < 0 or current_rank_index >= len(RANKS):
+        logger.warning(f"[RANK] Użytkownik {user.user_id}: niepoprawna ranga w bazie '{user.rank}', koryguję na '{new_rank}'")
+        user.rank = new_rank
+        db.add(user)
+        db.commit()
+        db.refresh(user)
+    elif user.rank != new_rank:
         logger.info(
             f"[RANK] Użytkownik {user.user_id}: zmiana rangi "
             f"z '{user.rank}' na '{new_rank}' (zaliczone sesje: {passed})"
@@ -146,9 +198,29 @@ def get_rank_info(user: User, db: Session) -> Dict[str, Any]:
     - sessions_to_next_rank: ile sesji brakuje do kolejnej rangi
     - is_max_rank: czy osiągnięto najwyższą rangę
     """
+    if not user:
+        logger.error("[RANK] Brak użytkownika w get_rank_info")
+        return {
+            "rank": "Nowicjusz",
+            "passed_sessions": 0,
+            "current_rank_min": 0,
+            "current_rank_max": 4,
+            "next_rank": "Adepciak",
+            "next_rank_min": 5,
+            "progress_percent": 0.0,
+            "sessions_to_next_rank": 5,
+            "is_max_rank": False,
+        }
+    
     passed = count_passed_sessions(user, db)
     current_rank_name = get_rank_name(passed)
     current_index = _find_rank_index_by_name(current_rank_name)
+
+    # Walidacja indeksu
+    if current_index < 0 or current_index >= len(RANKS):
+        logger.error(f"[RANK] Nieprawidłowy indeks rangi: {current_index}, ustawiam na 0")
+        current_index = 0
+        current_rank_name = "Nowicjusz"
 
     current_min, current_max, _ = RANKS[current_index]
 

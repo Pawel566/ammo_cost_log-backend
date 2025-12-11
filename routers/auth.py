@@ -258,6 +258,17 @@ async def refresh_token(data: RefreshRequest):
     except Exception as e:
         raise ErrorHandler.handle_supabase_error(e, "refresh_token")
 
+@router.get("/debug/current-user")
+async def debug_current_user(current_user: UserContext = Depends(get_current_user)):
+    """Debug endpoint - zwraca aktualny user_id (tylko dla zalogowanych użytkowników)"""
+    return {
+        "user_id": current_user.user_id,
+        "email": getattr(current_user, 'email', None),
+        "username": getattr(current_user, 'username', None),
+        "role": current_user.role.value if hasattr(current_user.role, 'value') else str(current_user.role),
+        "is_guest": getattr(current_user, 'is_guest', False)
+    }
+
 @router.post("/forgot-password")
 async def forgot_password(request: ForgotPasswordRequest):
     """Send password reset email"""

@@ -5,7 +5,7 @@ from sqlalchemy import or_, func, desc
 from models import Maintenance, Gun, ShootingSession
 from services.user_context import UserContext, UserRole
 from services.gun_service import GunService
-from services.exceptions import NotFoundError
+from services.exceptions import NotFoundError, BadRequestError
 import logging
 
 logger = logging.getLogger(__name__)
@@ -118,6 +118,10 @@ class MaintenanceService:
         if isinstance(maintenance_date, str):
             maintenance_date = datetime.strptime(maintenance_date, "%Y-%m-%d").date()
         
+        # Walidacja: data konserwacji nie może być w przyszłości
+        if maintenance_date > date.today():
+            raise BadRequestError("Data konserwacji nie może być w przyszłości")
+        
         rounds_since_last = data.get("rounds_since_last", 0)
         if rounds_since_last == 0:
             query_last = MaintenanceService._query_for_user(user, gun_id).order_by(desc(Maintenance.date)).limit(1)
@@ -158,10 +162,19 @@ class MaintenanceService:
     def update_maintenance(session: Session, user: UserContext, maintenance_id: str, data: dict) -> Maintenance:
         maintenance = MaintenanceService._get_single_maintenance(session, maintenance_id, user)
         if "date" in data and data["date"] is not None:
-            if isinstance(data["date"], str):
-                maintenance.date = datetime.strptime(data["date"], "%Y-%m-%d").date()
-            elif isinstance(data["date"], date):
-                maintenance.date = data["date"]
+            new_date = data["date"]
+            if isinstance(new_date, str):
+                new_date = datetime.strptime(new_date, "%Y-%m-%d").date()
+            elif isinstance(new_date, date):
+                pass
+            else:
+                new_date = None
+            
+            if new_date and new_date > date.today():
+                raise BadRequestError("Data konserwacji nie może być w przyszłości")
+            
+            if new_date:
+                maintenance.date = new_date
         if "notes" in data:
             maintenance.notes = data.get("notes")
         if "activities" in data:
@@ -213,7 +226,20 @@ class MaintenanceService:
                     if last_maintenance:
                         days_since = (today - last_maintenance.date).days
                     else:
-                        days_since = None
+                        query_first_session = select(ShootingSession).where(
+                            ShootingSession.gun_id == gun.id,
+                            ShootingSession.user_id == user.user_id
+                        ).order_by(ShootingSession.date).limit(1)
+                        first_session = session.exec(query_first_session).first()
+                        
+                        if first_session:
+                            days_since = (today - first_session.date).days
+                        else:
+                            # Użyj daty utworzenia broni jako fallback
+                            if gun.created_at:
+                                days_since = (today - gun.created_at).days
+                            else:
+                                days_since = 0
                     
                     gun_stats.append({
                         "gun_id": gun.id,

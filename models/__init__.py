@@ -1,5 +1,5 @@
 from .gun import Gun, GunBase, GunUpdate
-from .ammo import Ammo, AmmoBase, AmmoUpdate, AmmoType
+from .ammo import Ammo, AmmoBase, AmmoUpdate, AmmoType, AmmoCategory
 from .shooting_session import ShootingSession, ShootingSessionBase
 from .attachment import Attachment, AttachmentBase, AttachmentType
 from .maintenance import Maintenance, MaintenanceBase
@@ -14,6 +14,7 @@ __all__ = [
     "AmmoBase",
     "AmmoUpdate",
     "AmmoType",
+    "AmmoCategory",
     "ShootingSession",
     "ShootingSessionBase",
     "Attachment",
