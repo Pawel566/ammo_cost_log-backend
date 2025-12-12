@@ -1,32 +1,38 @@
-from datetime import date, datetime
+from datetime import date
 from typing import Optional
-from pydantic import BaseModel, Field, ConfigDict
+from pydantic import BaseModel, Field, ConfigDict, model_validator
 
 
-class ShootingSessionCreate(BaseModel):
+class ShootingSessionBase(BaseModel):
+    date: Optional[date] = None
+    cost: Optional[float] = Field(default=None, ge=0, le=1000000)
+    notes: Optional[str] = None
+    distance_m: Optional[float] = Field(default=None, gt=0, le=10000)
+    hits: Optional[int] = Field(default=None, ge=0, le=100000)
+    group_cm: Optional[float] = Field(default=None, gt=0, le=10000)
+    session_type: Optional[str] = Field(default='standard', max_length=20)
+
+    @model_validator(mode='after')
+    def validate_hits_and_date(self):
+        shots = getattr(self, 'shots', None)
+        if shots is not None and self.hits is not None:
+            if self.hits > shots:
+                raise ValueError('hits must not exceed shots')
+        if self.date is not None and self.date > date.today():
+            raise ValueError('date cannot be in the future')
+        return self
+
+
+class ShootingSessionCreate(ShootingSessionBase):
     gun_id: str = Field(min_length=1)
     ammo_id: str = Field(min_length=1)
-    date: Optional[str] = None
-    shots: int = Field(gt=0, le=100000)  # Maksymalna liczba strzałów: 100,000
-    cost: Optional[float] = Field(default=None, ge=0, le=1000000)  # Maksymalny koszt: 1,000,000
-    notes: Optional[str] = None
-    distance_m: Optional[float] = Field(default=None, gt=0, le=10000)  # Maksymalna odległość: 10,000m
-    hits: Optional[int] = Field(default=None, ge=0, le=100000)  # Maksymalna liczba trafień: 100,000
-    group_cm: Optional[float] = Field(default=None, gt=0, le=10000)  # Maksymalna grupa: 10,000cm
-    session_type: Optional[str] = Field(default='standard', max_length=20)  # 'standard' or 'advanced'
+    shots: int = Field(gt=0, le=100000)
 
 
-class ShootingSessionUpdate(BaseModel):
-    date: Optional[str] = None
+class ShootingSessionUpdate(ShootingSessionBase):
     gun_id: Optional[str] = None
     ammo_id: Optional[str] = None
-    shots: Optional[int] = Field(default=None, gt=0, le=100000)  # Maksymalna liczba strzałów: 100,000
-    hits: Optional[int] = Field(default=None, ge=0, le=100000)  # Maksymalna liczba trafień: 100,000
-    group_cm: Optional[float] = Field(default=None, gt=0, le=10000)  # Maksymalna grupa: 10,000cm
-    distance_m: Optional[float] = Field(default=None, gt=0, le=10000)  # Maksymalna odległość: 10,000m
-    cost: Optional[float] = Field(default=None, ge=0, le=1000000)  # Maksymalny koszt: 1,000,000
-    notes: Optional[str] = None
-    session_type: Optional[str] = Field(default=None, max_length=20)  # 'standard' or 'advanced'
+    shots: Optional[int] = Field(default=None, gt=0, le=100000)
 
 
 class ShootingSessionRead(BaseModel):
@@ -38,8 +44,8 @@ class ShootingSessionRead(BaseModel):
     cost: Optional[float] = Field(default=None, ge=0)
     notes: Optional[str] = None
     distance_m: Optional[float] = Field(default=None, gt=0)
-    distance: Optional[float] = Field(default=None, gt=0)  # Przeliczona wartość w jednostkach użytkownika
-    distance_unit: Optional[str] = Field(default=None, max_length=2)  # Jednostka dystansu (m lub yd)
+    distance: Optional[float] = Field(default=None, gt=0)
+    distance_unit: Optional[str] = Field(default=None, max_length=2)
     hits: Optional[int] = Field(default=None, ge=0)
     group_cm: Optional[float] = Field(default=None, gt=0)
     accuracy_percent: Optional[float] = Field(default=None, ge=0, le=100)
