@@ -1,7 +1,9 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, Request, status
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from database import init_db
 from routers import guns, ammo, auth, maintenance, settings as settings_router, account, attachments, shooting_sessions, currency_rates
+from services.exceptions import NotFoundError, ForbiddenError, BadRequestError
 import logging
 import os
 from settings import settings
@@ -31,9 +33,49 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+@app.exception_handler(NotFoundError)
+async def not_found_error_handler(request: Request, exc: NotFoundError):
+    return JSONResponse(
+        status_code=status.HTTP_404_NOT_FOUND,
+        content={"code": "NOT_FOUND", "message": exc.detail}
+    )
+
+@app.exception_handler(ForbiddenError)
+async def forbidden_error_handler(request: Request, exc: ForbiddenError):
+    return JSONResponse(
+        status_code=status.HTTP_403_FORBIDDEN,
+        content={"code": "FORBIDDEN", "message": exc.detail}
+    )
+
+@app.exception_handler(BadRequestError)
+async def bad_request_error_handler(request: Request, exc: BadRequestError):
+    return JSONResponse(
+        status_code=status.HTTP_400_BAD_REQUEST,
+        content={"code": "BAD_REQUEST", "message": exc.detail}
+    )
+
+@app.exception_handler(ValueError)
+async def value_error_handler(request: Request, exc: ValueError):
+    return JSONResponse(
+        status_code=status.HTTP_400_BAD_REQUEST,
+        content={"code": "BAD_REQUEST", "message": str(exc)}
+    )
+
+@app.exception_handler(Exception)
+async def generic_exception_handler(request: Request, exc: Exception):
+    logging.error(f"Unhandled exception: {exc}", exc_info=True)
+    return JSONResponse(
+        status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        content={"code": "INTERNAL_ERROR", "message": "An internal error occurred"}
+    )
+
 @app.on_event("startup")
 def startup_event():
     init_db()
+    """
+    Startup hook.
+    Database schema is managed exclusively via Alembic migrations.
+    """
     # Pobierz kursy walut przy starcie aplikacji (tylko jeśli nie ma dzisiejszych kursów)
     try:
         from database import get_session
