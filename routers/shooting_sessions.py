@@ -192,13 +192,9 @@ async def generate_ai_comment(
         raise HTTPException(status_code=403, detail="Goście nie mogą generować komentarzy AI")
     
     # Pobierz sesję
-    ss = session.get(ShootingSession, session_id)
+    ss = ShootingSessionsService._get_session(session, session_id, user)
     if not ss:
         raise HTTPException(status_code=404, detail="Sesja nie została znaleziona")
-    
-    if user.role != UserRole.admin:
-        if ss.user_id != user.user_id:
-            raise HTTPException(status_code=404, detail="Sesja nie została znaleziona")
     
     # Wymagane: dystans i liczba strzałów
     if not ss.distance_m or not ss.shots or ss.shots == 0:
@@ -331,13 +327,9 @@ async def get_shooting_session(
     session: Session = Depends(get_session),
     user: UserContext = Depends(role_required([UserRole.guest, UserRole.user, UserRole.admin]))
 ):
-    ss = session.get(ShootingSession, session_id)
+    ss = ShootingSessionsService._get_session(session, session_id, user)
     if not ss:
         raise HTTPException(status_code=404, detail="Session not found")
-    
-    if user.role != UserRole.admin:
-        if ss.user_id != user.user_id:
-            raise HTTPException(status_code=404, detail="Session not found")
     
     return await create_session_read(ss, session, user)
 
@@ -426,13 +418,9 @@ async def upload_target_image_endpoint(
     if not file.content_type or not file.content_type.startswith('image/'):
         raise HTTPException(status_code=400, detail="Plik musi być obrazem")
     
-    ss = session.get(ShootingSession, session_id)
+    ss = ShootingSessionsService._get_session(session, session_id, user)
     if not ss:
         raise HTTPException(status_code=404, detail="Sesja nie została znaleziona")
-    
-    if user.role != UserRole.admin:
-        if ss.user_id != user.user_id:
-            raise HTTPException(status_code=403, detail="Brak uprawnień do tej sesji")
     
     file_bytes = await file.read()
     
@@ -480,13 +468,9 @@ async def get_target_image(
     Only the owner of the session can see the image.
     """
     try:
-        ss = session.get(ShootingSession, session_id)
+        ss = ShootingSessionsService._get_session(session, session_id, user)
         if not ss:
             return {"url": None}
-        
-        if user.role != UserRole.admin:
-            if ss.user_id != user.user_id:
-                return {"url": None}
         
         if not ss.target_image_path:
             return {"url": None}
@@ -515,13 +499,9 @@ async def delete_target_image_endpoint(
     if user.is_guest:
         raise HTTPException(status_code=403, detail="Goście nie mogą usuwać zdjęć")
     
-    ss = session.get(ShootingSession, session_id)
+    ss = ShootingSessionsService._get_session(session, session_id, user)
     if not ss:
         raise HTTPException(status_code=404, detail="Sesja nie została znaleziona")
-    
-    if user.role != UserRole.admin:
-        if ss.user_id != user.user_id:
-            raise HTTPException(status_code=403, detail="Brak uprawnień do tej sesji")
     
     if not ss.target_image_path:
         raise HTTPException(status_code=404, detail="Sesja nie ma zdjęcia tarczy")

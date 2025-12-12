@@ -199,6 +199,12 @@ class ShootingSessionsService:
         return session.exec(query).first()
 
     @staticmethod
+    def _get_session(session: Session, session_id: str, user: UserContext) -> Optional[ShootingSession]:
+        query = select(ShootingSession).where(ShootingSession.id == session_id)
+        query = query.where(ShootingSession.user_id == user.user_id)
+        return session.exec(query).first()
+
+    @staticmethod
     async def get_all_sessions(
         session: Session,
         user: UserContext,
@@ -383,13 +389,9 @@ class ShootingSessionsService:
         user: UserContext,
         data: Any
     ) -> Dict[str, Any]:
-        ss = session.get(ShootingSession, session_id)
+        ss = ShootingSessionsService._get_session(session, session_id, user)
         if not ss:
             raise HTTPException(status_code=404, detail="Session not found")
-        
-        if user.role != UserRole.admin:
-            if ss.user_id != user.user_id:
-                raise HTTPException(status_code=404, detail="Session not found")
 
         update_dict = data.model_dump(exclude_unset=True)
         
@@ -555,13 +557,9 @@ class ShootingSessionsService:
 
     @staticmethod
     async def delete_shooting_session(session: Session, session_id: str, user: UserContext) -> Dict[str, str]:
-        ss = session.get(ShootingSession, session_id)
+        ss = ShootingSessionsService._get_session(session, session_id, user)
         if not ss:
             raise HTTPException(status_code=404, detail="Session not found")
-        
-        if user.role != UserRole.admin:
-            if ss.user_id != user.user_id:
-                raise HTTPException(status_code=404, detail="Session not found")
 
         # Usuń zdjęcie tarczy z Supabase jeśli istnieje
         if ss.target_image_path:
