@@ -10,10 +10,7 @@ from services.exceptions import NotFoundError, BadRequestError
 class GunService:
     @staticmethod
     def _query_for_user(user: UserContext):
-        query = select(Gun)
-        if user.role == UserRole.admin:
-            return query
-        query = query.where(Gun.user_id == user.user_id)
+        query = select(Gun).where(Gun.user_id == user.user_id)
         return query
 
     @staticmethod
@@ -57,6 +54,7 @@ class GunService:
         from datetime import date
         from services.exceptions import BadRequestError
         payload = gun_data.model_dump(exclude_unset=True)
+        payload.pop('user_id', None)
         # Jeśli created_at nie jest podane, użyj dzisiejszej daty
         if 'created_at' not in payload or payload['created_at'] is None:
             payload['created_at'] = date.today()
@@ -78,6 +76,7 @@ class GunService:
     def update_gun(session: Session, gun_id: str, gun_data: GunUpdate, user: UserContext) -> Gun:
         gun = GunService._get_single_gun(session, gun_id, user)
         gun_dict = gun_data.model_dump(exclude_unset=True)
+        gun_dict.pop('user_id', None)
         for key, value in gun_dict.items():
             setattr(gun, key, value)
         session.add(gun)
