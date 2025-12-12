@@ -3,17 +3,14 @@ from typing import Optional
 from sqlalchemy import or_, func
 from models import Ammo, AmmoUpdate
 from schemas.ammo import AmmoCreate
-from services.user_context import UserContext, UserRole
+from services.user_context import UserContext
 from services.exceptions import NotFoundError, BadRequestError
 
 
 class AmmoService:
     @staticmethod
     def _query_for_user(user: UserContext):
-        query = select(Ammo)
-        if user.role == UserRole.admin:
-            return query
-        query = query.where(Ammo.user_id == user.user_id)
+        query = select(Ammo).where(Ammo.user_id == user.user_id)
         return query
 
     @staticmethod
