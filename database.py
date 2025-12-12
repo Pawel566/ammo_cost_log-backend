@@ -17,6 +17,11 @@ engine = create_engine(
     connect_args={"check_same_thread": False} if "sqlite" in DATABASE_URL else {}
 )
 
+def get_async_session() -> Generator[Session, None, None]:
+    """Unified function for getting database session"""
+    with Session(engine) as session:
+        yield session
+
 def init_db():
     SQLModel.metadata.create_all(engine)
     
@@ -61,7 +66,31 @@ def init_db():
                         logging.info("Added activities column to maintenance table")
     except Exception as e:
         logging.warning(f"Could not add columns to maintenance: {e}")
+    
+    try:
+        inspector = inspect(engine)
+        if inspector.has_table("shooting_sessions"):
+            columns = [col["name"] for col in inspector.get_columns("shooting_sessions")]
+            if "group_cm" not in columns:
+                with engine.begin() as conn:
+                    if "sqlite" in DATABASE_URL:
+                        conn.execute(text("ALTER TABLE shooting_sessions ADD COLUMN group_cm REAL"))
+                        logging.info("Added group_cm column to shooting_sessions table")
+                    else:
+                        conn.execute(text("ALTER TABLE shooting_sessions ADD COLUMN group_cm FLOAT"))
+                        logging.info("Added group_cm column to shooting_sessions table")
+            if "final_score" not in columns:
+                with engine.begin() as conn:
+                    if "sqlite" in DATABASE_URL:
+                        conn.execute(text("ALTER TABLE shooting_sessions ADD COLUMN final_score REAL"))
+                        logging.info("Added final_score column to shooting_sessions table")
+                    else:
+                        conn.execute(text("ALTER TABLE shooting_sessions ADD COLUMN final_score FLOAT"))
+                        logging.info("Added final_score column to shooting_sessions table")
+    except Exception as e:
+        logging.warning(f"Could not add columns to shooting_sessions: {e}")
 
 def get_session() -> Generator[Session, None, None]:
+    """Alias for get_async_session for backward compatibility"""
     with Session(engine) as session:
         yield session

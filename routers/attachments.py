@@ -15,7 +15,7 @@ async def get_gun_attachments(
     session: Session = Depends(get_session),
     user: UserContext = Depends(role_required([UserRole.guest, UserRole.user, UserRole.admin]))
 ):
-    return await AttachmentsService.list_for_gun(session, user, gun_id)
+    return AttachmentsService.list_for_gun(session, user, gun_id)
 
 @router.post("/guns/{gun_id}/attachments", response_model=AttachmentRead)
 async def add_attachment(
@@ -24,7 +24,15 @@ async def add_attachment(
     session: Session = Depends(get_session),
     user: UserContext = Depends(role_required([UserRole.guest, UserRole.user, UserRole.admin]))
 ):
-    return await AttachmentsService.create_attachment(session, user, gun_id, attachment_data.model_dump())
+    return AttachmentsService.create_attachment(session, user, gun_id, attachment_data.model_dump())
+
+@router.get("/attachments/{attachment_id}", response_model=AttachmentRead)
+async def get_attachment(
+    attachment_id: str,
+    session: Session = Depends(get_session),
+    user: UserContext = Depends(role_required([UserRole.guest, UserRole.user, UserRole.admin]))
+):
+    return AttachmentsService.get_attachment_by_id(session, user, attachment_id)
 
 @router.delete("/attachments/{attachment_id}")
 async def delete_attachment(
@@ -32,6 +40,6 @@ async def delete_attachment(
     session: Session = Depends(get_session),
     user: UserContext = Depends(role_required([UserRole.guest, UserRole.user, UserRole.admin]))
 ):
-    return await AttachmentsService.delete_attachment(session, user, attachment_id)
+    return AttachmentsService.delete_attachment(session, user, attachment_id)
 
 

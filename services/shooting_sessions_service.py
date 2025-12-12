@@ -4,7 +4,7 @@ from datetime import date, datetime
 from collections import defaultdict
 from sqlalchemy import or_, func, cast, String, not_
 from fastapi import HTTPException
-from models import ShootingSession, Ammo, Gun
+from models import ShootingSession, Ammo, Gun, AmmoCategory
 import logging
 from services.user_context import UserContext, UserRole
 from services.maintenance_service import MaintenanceService
@@ -43,6 +43,35 @@ class SessionValidationService:
         return False
 
     @staticmethod
+    def validate_ammo_category_gun_type_compatibility(ammo: Ammo, gun: Gun) -> bool:
+        """Sprawdza czy kategoria amunicji pasuje do typu broni"""
+        if not ammo.category or not gun.type:
+            return True
+        
+        normalized_gun_type = gun.type.lower().strip()
+        ammo_category = ammo.category.value.lower() if isinstance(ammo.category, AmmoCategory) else str(ammo.category).lower()
+        
+        # Mapowanie typów broni na kategorie amunicji
+        # Pistolet / Pistolet maszynowy
+        if normalized_gun_type in ['pistol', 'pistolet', 'pistolet maszynowy'] or 'pcc' in normalized_gun_type or 'pm' in normalized_gun_type or 'pdw' in normalized_gun_type:
+            return ammo_category in ['pistol', 'other']
+        
+        # Rewolwer
+        if normalized_gun_type in ['rewolwer', 'revolver']:
+            return ammo_category in ['revolver', 'other']
+        
+        # Karabinek / Karabin
+        if normalized_gun_type in ['karabinek', 'carbine', 'karabin', 'rifle'] or 'ar-15' in normalized_gun_type or 'ak' in normalized_gun_type or 'grot' in normalized_gun_type or 'mcx' in normalized_gun_type or 'bolt-action' in normalized_gun_type or 'dmr' in normalized_gun_type:
+            return ammo_category in ['rifle', 'other']
+        
+        # Strzelba
+        if normalized_gun_type in ['shotgun', 'strzelba']:
+            return ammo_category in ['shotgun', 'other']
+        
+        # Inna - wszystkie kategorie dozwolone
+        return True
+
+    @staticmethod
     def validate_session_data(gun: Gun, ammo: Ammo, shots: int, hits: Optional[int] = None) -> None:
         if not gun:
             raise HTTPException(status_code=404, detail="Broń nie została znaleziona")
@@ -50,11 +79,13 @@ class SessionValidationService:
             raise HTTPException(status_code=404, detail="Amunicja nie została znaleziona")
         if gun.user_id != ammo.user_id:
             raise HTTPException(status_code=400, detail="Wybrana broń i amunicja należą do różnych użytkowników")
-        current_time = datetime.utcnow()
-        if gun.expires_at and gun.expires_at <= current_time:
-            raise HTTPException(status_code=404, detail="Broń nie została znaleziona")
-        if ammo.expires_at and ammo.expires_at <= current_time:
-            raise HTTPException(status_code=404, detail="Amunicja nie została znaleziona")
+        if not SessionValidationService.validate_ammo_category_gun_type_compatibility(ammo, gun):
+            gun_type_display = gun.type or "nieokreślony"
+            ammo_category_display = ammo.category.value if isinstance(ammo.category, AmmoCategory) else str(ammo.category) if ammo.category else "nieokreślona"
+            raise HTTPException(
+                status_code=400,
+                detail=f"Kategoria amunicji '{ammo_category_display}' nie pasuje do typu broni '{gun_type_display}'"
+            )
         if not SessionValidationService.validate_ammo_gun_compatibility(ammo, gun):
             raise HTTPException(
                 status_code=400,
@@ -82,18 +113,44 @@ class SessionCalculationService:
         return round((hits / shots) * 100, 2)
 
     @staticmethod
-    def parse_date(date_value: Optional[Union[str, date]]) -> date:
+    def calculate_final_score(group_cm: Optional[float], distance_m: Optional[float], hits: Optional[int], shots: int) -> Optional[float]:
+        if not hits or not shots or shots <= 0:
+            return None
+        
+        accuracy = hits / shots
+        
+        if group_cm and distance_m and distance_m > 0:
+            moa = (group_cm / distance_m) * 34.38
+            effective_moa = moa * distance_m / 100
+            precision = max(0, 1 - (effective_moa / 10))
+            final = (accuracy * 0.4) + (precision * 0.6)
+            return round(final * 100, 2)
+        
+        return round(accuracy * 100, 2)
+
+    @staticmethod
+    def parse_date(date_value: Optional[Union[str, date]], allow_future: bool = False) -> date:
         if not date_value:
             return date.today()
         if isinstance(date_value, date):
-            return date_value
-        try:
-            return datetime.strptime(date_value, "%Y-%m-%d").date()
-        except ValueError:
+            parsed_date = date_value
+        else:
+            try:
+                parsed_date = datetime.strptime(date_value, "%Y-%m-%d").date()
+            except ValueError:
+                raise HTTPException(
+                    status_code=400,
+                    detail="Data musi być w formacie YYYY-MM-DD (np. 2025-10-23)"
+                )
+        
+        # Walidacja: data nie może być w przyszłości (chyba że allow_future=True)
+        if not allow_future and parsed_date > date.today():
             raise HTTPException(
                 status_code=400,
-                detail="Data musi być w formacie YYYY-MM-DD (np. 2025-10-23)"
+                detail="Data sesji nie może być w przyszłości"
             )
+        
+        return parsed_date
 
 
 class ShootingSessionsService:
@@ -103,8 +160,6 @@ class ShootingSessionsService:
         if user.role == UserRole.admin:
             return query
         query = query.where(model.user_id == user.user_id)
-        if user.is_guest and hasattr(model, "expires_at"):
-            query = query.where(or_(model.expires_at.is_(None), model.expires_at > datetime.utcnow()))
         return query
 
     @staticmethod
@@ -134,8 +189,6 @@ class ShootingSessionsService:
         query = select(Gun).where(Gun.id == gun_id)
         if user.role != UserRole.admin:
             query = query.where(Gun.user_id == user.user_id)
-            if user.is_guest:
-                query = query.where(or_(Gun.expires_at.is_(None), Gun.expires_at > datetime.utcnow()))
         return session.exec(query).first()
 
     @staticmethod
@@ -143,8 +196,6 @@ class ShootingSessionsService:
         query = select(Ammo).where(Ammo.id == ammo_id)
         if user.role != UserRole.admin:
             query = query.where(Ammo.user_id == user.user_id)
-            if user.is_guest:
-                query = query.where(or_(Ammo.expires_at.is_(None), Ammo.expires_at > datetime.utcnow()))
         return session.exec(query).first()
 
     @staticmethod
@@ -194,8 +245,6 @@ class ShootingSessionsService:
             count_query = select(func.count(ShootingSession.id))
             if user.role != UserRole.admin:
                 count_query = count_query.where(ShootingSession.user_id == user.user_id)
-                if user.is_guest:
-                    count_query = count_query.where(or_(ShootingSession.expires_at.is_(None), ShootingSession.expires_at > datetime.utcnow()))
             if gun_id:
                 count_query = count_query.where(ShootingSession.gun_id == gun_id)
             if date_from:
@@ -233,7 +282,7 @@ class ShootingSessionsService:
         user: UserContext,
         data: Any
     ) -> Dict[str, Any]:
-        parsed_date = SessionCalculationService.parse_date(data.date)
+        parsed_date = SessionCalculationService.parse_date(data.date, allow_future=False)
         gun = ShootingSessionsService._get_gun(session, data.gun_id, user)
         ammo = ShootingSessionsService._get_ammo(session, data.ammo_id, user)
         
@@ -248,15 +297,15 @@ class ShootingSessionsService:
         if hits is not None and data.shots > 0:
             accuracy_percent = SessionCalculationService.calculate_accuracy(hits, data.shots)
         
-        ammo.units_in_package -= data.shots
-        target_expiration = user.expires_at if user.is_guest else gun.expires_at
+        group_cm = data.group_cm if hasattr(data, 'group_cm') and data.group_cm is not None else None
+        final_score = SessionCalculationService.calculate_final_score(
+            group_cm, 
+            data.distance_m if data.distance_m is not None else None,
+            hits,
+            data.shots
+        )
         
-        if user.is_guest:
-            ammo.expires_at = target_expiration
-            gun.expires_at = target_expiration
-        elif user.role != UserRole.admin:
-            ammo.expires_at = None
-            gun.expires_at = None
+        ammo.units_in_package -= data.shots
         
         new_session = ShootingSession(
             gun_id=data.gun_id,
@@ -267,11 +316,12 @@ class ShootingSessionsService:
             notes=data.notes,
             distance_m=data.distance_m if data.distance_m is not None else None,
             hits=data.hits if data.hits is not None else None,
+            group_cm=group_cm,
             accuracy_percent=accuracy_percent,
+            final_score=final_score,
             ai_comment=None,
             session_type=data.session_type if hasattr(data, 'session_type') and data.session_type else 'standard',
-            user_id=gun.user_id,
-            expires_at=target_expiration
+            user_id=gun.user_id
         )
         
         session.add(new_session)
@@ -279,7 +329,7 @@ class ShootingSessionsService:
         session.add(gun)
         session.commit()
         session.refresh(new_session)
-        await MaintenanceService.update_last_maintenance_rounds(session, user, data.gun_id)
+        MaintenanceService.update_last_maintenance_rounds(session, user, data.gun_id)
         
         return {
             "session": new_session,
@@ -340,9 +390,6 @@ class ShootingSessionsService:
         if user.role != UserRole.admin:
             if ss.user_id != user.user_id:
                 raise HTTPException(status_code=404, detail="Session not found")
-            if user.is_guest:
-                if ss.expires_at and ss.expires_at <= datetime.utcnow():
-                    raise HTTPException(status_code=404, detail="Session not found")
 
         update_dict = data.model_dump(exclude_unset=True)
         
@@ -355,7 +402,7 @@ class ShootingSessionsService:
 
         if "date" in update_dict:
             if isinstance(update_dict["date"], str):
-                update_dict["date"] = SessionCalculationService.parse_date(update_dict["date"])
+                update_dict["date"] = SessionCalculationService.parse_date(update_dict["date"], allow_future=False)
             elif update_dict["date"] is None:
                 del update_dict["date"]
 
@@ -441,6 +488,10 @@ class ShootingSessionsService:
             if update_dict["hits"] is None:
                 del update_dict["hits"]
 
+        if "group_cm" in update_dict:
+            if update_dict["group_cm"] is None:
+                del update_dict["group_cm"]
+
         if "shots" in update_dict:
             if update_dict["shots"] is None:
                 del update_dict["shots"]
@@ -452,12 +503,20 @@ class ShootingSessionsService:
         final_distance_m = update_dict.get("distance_m", ss.distance_m)
         final_hits = update_dict.get("hits", ss.hits)
         final_shots = update_dict.get("shots", ss.shots)
+        final_group_cm = update_dict.get("group_cm", ss.group_cm if hasattr(ss, 'group_cm') else None)
 
         if final_distance_m is not None and final_hits is not None and final_shots and final_shots > 0:
             update_dict["accuracy_percent"] = SessionCalculationService.calculate_accuracy(final_hits, final_shots)
-        elif "distance_m" in update_dict or "hits" in update_dict:
+            update_dict["final_score"] = SessionCalculationService.calculate_final_score(
+                final_group_cm,
+                final_distance_m,
+                final_hits,
+                final_shots
+            )
+        elif "distance_m" in update_dict or "hits" in update_dict or "group_cm" in update_dict:
             if final_distance_m is None or final_hits is None:
                 update_dict["accuracy_percent"] = None
+                update_dict["final_score"] = None
 
         if "cost" not in update_dict and ("shots" in update_dict or "ammo_id" in update_dict):
             if "ammo_id" in update_dict:
@@ -503,9 +562,6 @@ class ShootingSessionsService:
         if user.role != UserRole.admin:
             if ss.user_id != user.user_id:
                 raise HTTPException(status_code=404, detail="Session not found")
-            if user.is_guest:
-                if ss.expires_at and ss.expires_at <= datetime.utcnow():
-                    raise HTTPException(status_code=404, detail="Session not found")
 
         # Usuń zdjęcie tarczy z Supabase jeśli istnieje
         if ss.target_image_path:

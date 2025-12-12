@@ -71,12 +71,13 @@ async def create_session_read(session_obj: ShootingSession, db_session: Session,
         distance=distance,  # Przeliczona wartość
         distance_unit=unit,  # Jednostka przeliczona
         hits=session_obj.hits,
+        group_cm=session_obj.group_cm if hasattr(session_obj, 'group_cm') else None,
         accuracy_percent=session_obj.accuracy_percent,
+        final_score=session_obj.final_score if hasattr(session_obj, 'final_score') else None,
         ai_comment=session_obj.ai_comment,
         session_type=session_obj.session_type if hasattr(session_obj, 'session_type') else 'standard',
         target_image_path=session_obj.target_image_path if hasattr(session_obj, 'target_image_path') else None,
-        user_id=session_obj.user_id,
-        expires_at=session_obj.expires_at
+        user_id=session_obj.user_id
     )
 
 
@@ -337,9 +338,6 @@ async def get_shooting_session(
     if user.role != UserRole.admin:
         if ss.user_id != user.user_id:
             raise HTTPException(status_code=404, detail="Session not found")
-        if user.is_guest:
-            if ss.expires_at and ss.expires_at <= datetime.utcnow():
-                raise HTTPException(status_code=404, detail="Session not found")
     
     return await create_session_read(ss, session, user)
 

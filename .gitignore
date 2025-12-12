@@ -212,9 +212,121 @@ __marimo__/
 .venv/
 *.db
 venv
+dev.db
+*.db-journal
+
+# Alembic - tylko cache, nie cały katalog!
+alembic/versions/__pycache__/
+
+# Environment variables
+.env
+.env.local
+.env.*.local
+
+# IDE
+.idea/
+.vscode/
+*.iml
+misc.xml
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
 
 # AI Assistant instructions
 AGENTS.md
-ammo_cost_log-backend.iml
-misc.xml
-.venv
+
+# Temporary files
+*.tmp
+*.temp
+*.swp
+*.swo
+*~
+
+# Database files (local development)
+*.sqlite
+*.sqlite3
+*.db-shm
+*.db-wal
+
+# Test coverage
+.coverage
+htmlcov/
+.pytest_cache/
+.tox/
+
+# Backup files
+*.bak
+*.backup
+*~
+
+# Python specific
+*.py[cod]
+*.pyc
+*.pyo
+*.pyd
+.Python
+
+# Scripts output
+update_database.pyc
+update_database.sql
+
+# Additional database files
+*.db-journal
+*.db-wal
+*.db-shm
+
+# Migration files (keep versions, ignore cache)
+alembic/versions/__pycache__/
+
+# Render deployment
+.render/
+
+# Docker
+.dockerignore
+
+# Local configuration
+config.local.py
+settings.local.py
+
+# Backup files
+*.bak
+*.backup
+*.orig
+
+# Temporary Python files
+*.py[cod]
+*.pyc
+*.pyo
+*.pyd
+.Python
+
+# Jupyter Notebook checkpoints
+.ipynb_checkpoints
+
+# pytest
+.pytest_cache/
+.tox/
+.coverage
+htmlcov/
+
+# mypy
+.mypy_cache/
+.dmypy.json
+dmypy.json
+
+# Ruff
+.ruff_cache/
+
+# Coverage reports
+.coverage.*
+coverage.xml
+*.cover
+*.py.cover
+.hypothesis/
+
+# Profiling data
+.prof
