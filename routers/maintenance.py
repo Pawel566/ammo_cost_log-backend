@@ -6,6 +6,7 @@ from database import get_session
 from routers.auth import role_required
 from services.maintenance_service import MaintenanceService
 from services.user_context import UserContext, UserRole
+from services.exceptions import NotFoundError, BadRequestError
 import logging
 
 logger = logging.getLogger(__name__)
@@ -19,11 +20,7 @@ async def get_all_maintenance(
     user: UserContext = Depends(role_required([UserRole.guest, UserRole.user, UserRole.admin])),
     gun_id: Optional[str] = Query(default=None)
 ):
-    try:
-        return MaintenanceService.list_all(session, user, gun_id)
-    except Exception as e:
-        logger.error(f"Błąd podczas pobierania konserwacji: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"Błąd podczas pobierania konserwacji: {str(e)}")
+    return await MaintenanceService.list_all(session, user, gun_id)
 
 @router.get("/guns/{gun_id}/maintenance", response_model=List[MaintenanceRead])
 async def get_gun_maintenance(
@@ -31,18 +28,14 @@ async def get_gun_maintenance(
     session: Session = Depends(get_session),
     user: UserContext = Depends(role_required([UserRole.guest, UserRole.user, UserRole.admin]))
 ):
-    return MaintenanceService.list_for_gun(session, user, gun_id)
+    return await MaintenanceService.list_for_gun(session, user, gun_id)
 
 @router.get("/statistics", response_model=Dict[str, Any])
 async def get_maintenance_statistics(
     session: Session = Depends(get_session),
     user: UserContext = Depends(role_required([UserRole.guest, UserRole.user, UserRole.admin]))
 ):
-    try:
-        return MaintenanceService.get_statistics(session, user)
-    except Exception as e:
-        logger.error(f"Błąd podczas pobierania statystyk konserwacji: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"Błąd podczas pobierania statystyk konserwacji: {str(e)}")
+    return await MaintenanceService.get_statistics(session, user)
 
 @router.post("/guns/{gun_id}/maintenance", response_model=MaintenanceRead)
 async def add_maintenance(
@@ -51,7 +44,7 @@ async def add_maintenance(
     session: Session = Depends(get_session),
     user: UserContext = Depends(role_required([UserRole.guest, UserRole.user, UserRole.admin]))
 ):
-    return MaintenanceService.create_maintenance(session, user, gun_id, maintenance_data.model_dump())
+    return await MaintenanceService.create_maintenance(session, user, gun_id, maintenance_data.model_dump())
 
 @router.put("/maintenance/{maintenance_id}", response_model=MaintenanceRead)
 async def update_maintenance(
@@ -61,7 +54,7 @@ async def update_maintenance(
     user: UserContext = Depends(role_required([UserRole.guest, UserRole.user, UserRole.admin]))
 ):
     data_dict = maintenance_data.model_dump(exclude_none=True, by_alias=True)
-    return MaintenanceService.update_maintenance(session, user, maintenance_id, data_dict)
+    return await MaintenanceService.update_maintenance(session, user, maintenance_id, data_dict)
 
 @router.delete("/maintenance/{maintenance_id}")
 async def delete_maintenance(
@@ -69,7 +62,7 @@ async def delete_maintenance(
     session: Session = Depends(get_session),
     user: UserContext = Depends(role_required([UserRole.guest, UserRole.user, UserRole.admin]))
 ):
-    return MaintenanceService.delete_maintenance(session, user, maintenance_id)
+    return await MaintenanceService.delete_maintenance(session, user, maintenance_id)
 
 
 

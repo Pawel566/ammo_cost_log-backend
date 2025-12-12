@@ -11,6 +11,7 @@ from services.ai_service import AIService
 from services.rank_service import update_user_rank
 from services.account_service import AccountService
 from services.user_settings_service import UserSettingsService
+from services.exceptions import NotFoundError, BadRequestError
 from datetime import datetime
 from typing import Optional, Dict, Any
 import asyncio
@@ -140,18 +141,14 @@ async def get_all_sessions(
     date_from: Optional[str] = Query(default=None),
     date_to: Optional[str] = Query(default=None)
 ):
-    try:
-        result = await ShootingSessionsService.get_all_sessions(
-            session, user, limit, offset, search, gun_id, date_from, date_to
-        )
-        sessions = result.get("items", [])
-        return [
-            await create_session_read(s, session, user)
-            for s in sessions
-        ]
-    except Exception as e:
-        logger.error(f"Błąd podczas pobierania sesji: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"Błąd podczas pobierania sesji: {str(e)}")
+    result = await ShootingSessionsService.get_all_sessions(
+        session, user, limit, offset, search, gun_id, date_from, date_to
+    )
+    sessions = result.get("items", [])
+    return [
+        await create_session_read(s, session, user)
+        for s in sessions
+    ]
 
 @router.get("/summary", response_model=MonthlySummaryResponse)
 async def get_monthly_summary(
@@ -161,17 +158,13 @@ async def get_monthly_summary(
     offset: int = Query(0, ge=0),
     search: Optional[str] = Query(default=None, min_length=1)
 ):
-    try:
-        result = await ShootingSessionsService.get_monthly_summary(session, user, limit, offset, search)
-        return {
-            "total": result.get("total", 0),
-            "items": result.get("items", []),
-            "limit": limit,
-            "offset": offset
-        }
-    except Exception as e:
-        logger.error(f"Błąd podczas pobierania podsumowania: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"Błąd podczas pobierania podsumowania: {str(e)}")
+    result = await ShootingSessionsService.get_monthly_summary(session, user, limit, offset, search)
+    return {
+        "total": result.get("total", 0),
+        "items": result.get("items", []),
+        "limit": limit,
+        "offset": offset
+    }
 
 
 @router.post("/{session_id}/generate-ai-comment", response_model=Dict[str, Any])
@@ -192,21 +185,22 @@ async def generate_ai_comment(
         raise HTTPException(status_code=403, detail="Goście nie mogą generować komentarzy AI")
     
     # Pobierz sesję
-    ss = ShootingSessionsService._get_session(session, session_id, user)
+    ss = session.get(ShootingSession, session_id)
     if not ss:
-        raise HTTPException(status_code=404, detail="Sesja nie została znaleziona")
+        raise NotFoundError("Sesja nie została znaleziona")
+    
+    if user.role != UserRole.admin:
+        if ss.user_id != user.user_id:
+            raise NotFoundError("Sesja nie została znaleziona")
     
     # Wymagane: dystans i liczba strzałów
     if not ss.distance_m or not ss.shots or ss.shots == 0:
-        raise HTTPException(
-            status_code=400, 
-            detail="Sesja musi zawierać dystans i liczbę strzałów, aby wygenerować komentarz AI"
-        )
+        raise BadRequestError("Sesja musi zawierać dystans i liczbę strzałów, aby wygenerować komentarz AI")
     
     # Pobierz broń
     gun = session.get(Gun, ss.gun_id)
     if not gun:
-        raise HTTPException(status_code=404, detail="Broń nie została znaleziona")
+        raise NotFoundError("Broń nie została znaleziona")
     
     # Pobierz skill_level użytkownika
     def _get_skill_level(db_session: Session):
@@ -273,22 +267,14 @@ async def generate_ai_comment(
                 # Vision nie zadziałało - sprawdź przyczynę
                 if not has_hits:
                     # Sprawdź czy problem jest z kluczem API
+                    from settings import settings
                     if not settings.openai_api_key:
-                        raise HTTPException(
-                            status_code=400,
-                            detail="Brak klucza OpenAI API. Skonfiguruj OPENAI_API_KEY w zmiennych środowiskowych."
-                        )
-                    raise HTTPException(
-                        status_code=400,
-                        detail="Nie udało się policzyć trafień ze zdjęcia. Sprawdź czy zdjęcie jest poprawne lub podaj liczbę trafień ręcznie."
-                    )
+                        raise BadRequestError("Brak klucza OpenAI API. Skonfiguruj OPENAI_API_KEY w zmiennych środowiskowych.")
+                    raise BadRequestError("Nie udało się policzyć trafień ze zdjęcia. Sprawdź czy zdjęcie jest poprawne lub podaj liczbę trafień ręcznie.")
         
         # Przypadek C lub fallback: zwykła analiza tekstowa
         if not has_hits:
-            raise HTTPException(
-                status_code=400,
-                detail="Podaj liczbę trafień lub dodaj zdjęcie tarczy, aby wygenerować komentarz AI"
-            )
+            raise BadRequestError("Podaj liczbę trafień lub dodaj zdjęcie tarczy, aby wygenerować komentarz AI")
         
         if not ss.accuracy_percent:
             ss.accuracy_percent = (ss.hits / ss.shots * 100) if ss.shots > 0 else 0
@@ -316,9 +302,6 @@ async def generate_ai_comment(
         return {"ai_comment": ai_comment}
     except HTTPException:
         raise
-    except Exception as e:
-        logger.error(f"Błąd podczas generowania komentarza AI: {str(e)}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"Błąd podczas generowania komentarza AI: {str(e)}")
 
 
 @router.get("/{session_id}", response_model=ShootingSessionRead)
@@ -327,9 +310,13 @@ async def get_shooting_session(
     session: Session = Depends(get_session),
     user: UserContext = Depends(role_required([UserRole.guest, UserRole.user, UserRole.admin]))
 ):
-    ss = ShootingSessionsService._get_session(session, session_id, user)
+    ss = session.get(ShootingSession, session_id)
     if not ss:
-        raise HTTPException(status_code=404, detail="Session not found")
+        raise NotFoundError("Session not found")
+    
+    if user.role != UserRole.admin:
+        if ss.user_id != user.user_id:
+            raise NotFoundError("Session not found")
     
     return await create_session_read(ss, session, user)
 
@@ -416,16 +403,20 @@ async def upload_target_image_endpoint(
         raise HTTPException(status_code=403, detail="Goście nie mogą dodawać zdjęć")
     
     if not file.content_type or not file.content_type.startswith('image/'):
-        raise HTTPException(status_code=400, detail="Plik musi być obrazem")
+        raise BadRequestError("Plik musi być obrazem")
     
-    ss = ShootingSessionsService._get_session(session, session_id, user)
+    ss = session.get(ShootingSession, session_id)
     if not ss:
-        raise HTTPException(status_code=404, detail="Sesja nie została znaleziona")
+        raise NotFoundError("Sesja nie została znaleziona")
+    
+    if user.role != UserRole.admin:
+        if ss.user_id != user.user_id:
+            raise HTTPException(status_code=403, detail="Brak uprawnień do tej sesji")
     
     file_bytes = await file.read()
     
     if len(file_bytes) > 10 * 1024 * 1024:
-        raise HTTPException(status_code=400, detail="Plik jest zbyt duży (max 10MB)")
+        raise BadRequestError("Plik jest zbyt duży (max 10MB)")
     
     filename = file.filename or f"target_{session_id}.jpg"
     
@@ -452,8 +443,6 @@ async def upload_target_image_endpoint(
         return {"image_path": image_path}
     except ValueError as e:
         raise HTTPException(status_code=503, detail="Usługa przechowywania zdjęć nie jest dostępna. Skonfiguruj Supabase Storage.")
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Błąd podczas przesyłania zdjęcia: {str(e)}")
 
 
 @router.get("/{session_id}/target-image")
@@ -468,9 +457,13 @@ async def get_target_image(
     Only the owner of the session can see the image.
     """
     try:
-        ss = ShootingSessionsService._get_session(session, session_id, user)
+        ss = session.get(ShootingSession, session_id)
         if not ss:
             return {"url": None}
+        
+        if user.role != UserRole.admin:
+            if ss.user_id != user.user_id:
+                return {"url": None}
         
         if not ss.target_image_path:
             return {"url": None}
@@ -499,12 +492,16 @@ async def delete_target_image_endpoint(
     if user.is_guest:
         raise HTTPException(status_code=403, detail="Goście nie mogą usuwać zdjęć")
     
-    ss = ShootingSessionsService._get_session(session, session_id, user)
+    ss = session.get(ShootingSession, session_id)
     if not ss:
-        raise HTTPException(status_code=404, detail="Sesja nie została znaleziona")
+        raise NotFoundError("Sesja nie została znaleziona")
+    
+    if user.role != UserRole.admin:
+        if ss.user_id != user.user_id:
+            raise HTTPException(status_code=403, detail="Brak uprawnień do tej sesji")
     
     if not ss.target_image_path:
-        raise HTTPException(status_code=404, detail="Sesja nie ma zdjęcia tarczy")
+        raise NotFoundError("Sesja nie ma zdjęcia tarczy")
     
     try:
         await asyncio.to_thread(delete_target_image, ss.target_image_path)
@@ -514,5 +511,3 @@ async def delete_target_image_endpoint(
         return {"message": "Zdjęcie tarczy zostało usunięte"}
     except ValueError as e:
         raise HTTPException(status_code=503, detail="Usługa przechowywania zdjęć nie jest dostępna.")
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Błąd podczas usuwania zdjęcia: {str(e)}")

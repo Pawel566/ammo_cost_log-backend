@@ -53,13 +53,6 @@ class UserInfo(BaseModel):
 class RefreshRequest(BaseModel):
     refresh_token: str
 
-class ForgotPasswordRequest(BaseModel):
-    email: str
-
-class ResetPasswordRequest(BaseModel):
-    new_password: str
-    confirm_password: str
-
 def _resolve_role(metadata: Optional[dict]) -> UserRole:
     if not metadata:
         return UserRole.user
@@ -133,6 +126,7 @@ async def get_user_context(
         user_id=guest_id,
         role=UserRole.guest,
         is_guest=True,
+        guest_session_id=guest_id,
         expires_at=expires_at
     )
 
@@ -257,37 +251,3 @@ async def refresh_token(data: RefreshRequest):
         raise
     except Exception as e:
         raise ErrorHandler.handle_supabase_error(e, "refresh_token")
-
-@router.get("/debug/current-user")
-async def debug_current_user(current_user: UserContext = Depends(get_current_user)):
-    """Debug endpoint - zwraca aktualny user_id (tylko dla zalogowanych użytkowników)"""
-    return {
-        "user_id": current_user.user_id,
-        "email": getattr(current_user, 'email', None),
-        "username": getattr(current_user, 'username', None),
-        "role": current_user.role.value if hasattr(current_user.role, 'value') else str(current_user.role),
-        "is_guest": getattr(current_user, 'is_guest', False)
-    }
-
-@router.post("/forgot-password")
-async def forgot_password(request: ForgotPasswordRequest):
-    """Send password reset email"""
-    if not supabase:
-        raise HTTPException(status_code=503, detail="Authentication service not available")
-    try:
-        # Supabase automatically sends password reset email
-        # The redirect URL should be configured in Supabase dashboard
-        frontend_url = settings.frontend_url or 'http://localhost:3000'
-        redirect_url = f"{frontend_url}/reset-password"
-        await asyncio.to_thread(
-            supabase.auth.reset_password_for_email,
-            request.email,
-            {
-                "redirect_to": redirect_url
-            }
-        )
-        # Always return success to prevent email enumeration
-        return {"message": "Jeśli podany email istnieje w systemie, wysłaliśmy link do resetowania hasła."}
-    except Exception as e:
-        # Always return success to prevent email enumeration
-        return {"message": "Jeśli podany email istnieje w systemie, wysłaliśmy link do resetowania hasła."}
