@@ -35,7 +35,7 @@ async def get_guns(
     offset: int = Query(0, ge=0),
     search: Optional[str] = Query(default=None, min_length=1)
 ):
-    return await GunService.get_all_guns(session, user, limit, offset, search)
+    return GunService.get_all_guns(session, user, limit, offset, search)
 
 @router.get("/{gun_id}", response_model=GunRead)
 async def get_gun(
@@ -43,7 +43,7 @@ async def get_gun(
     session: Session = Depends(get_session),
     user: UserContext = Depends(role_required([UserRole.guest, UserRole.user, UserRole.admin]))
 ):
-    return await GunService.get_gun_by_id(session, gun_id, user)
+    return GunService.get_gun_by_id(session, gun_id, user)
 
 @router.post("", response_model=GunRead)
 async def add_gun(
@@ -51,7 +51,7 @@ async def add_gun(
     session: Session = Depends(get_session),
     user: UserContext = Depends(role_required([UserRole.guest, UserRole.user, UserRole.admin]))
 ):
-    return await GunService.create_gun(session, gun_data, user)
+    return GunService.create_gun(session, gun_data, user)
 
 @router.put("/{gun_id}", response_model=GunRead)
 async def update_gun(
@@ -60,7 +60,7 @@ async def update_gun(
     session: Session = Depends(get_session),
     user: UserContext = Depends(role_required([UserRole.guest, UserRole.user, UserRole.admin]))
 ):
-    return await GunService.update_gun(session, gun_id, gun_data, user)
+    return GunService.update_gun(session, gun_id, gun_data, user)
 
 @router.delete("/{gun_id}", response_model=Dict[str, str])
 async def delete_gun(
@@ -87,7 +87,7 @@ async def upload_weapon_image_endpoint(
     if not file.content_type or not file.content_type.startswith('image/'):
         raise BadRequestError("Plik musi być obrazem")
     
-    gun = await GunService._get_single_gun(session, gun_id, user)
+    gun = GunService._get_single_gun(session, gun_id, user)
     
     if gun.user_id != user.user_id and user.role != UserRole.admin:
         raise HTTPException(status_code=403, detail="Brak uprawnień do tej broni")
@@ -129,7 +129,7 @@ async def get_weapon_image(
     Returns null if no image is uploaded or if Supabase is not configured.
     """
     try:
-        gun = await GunService._get_single_gun(session, gun_id, user)
+        gun = GunService._get_single_gun(session, gun_id, user)
         
         if not gun.image_path:
             return {"url": None}
@@ -159,7 +159,7 @@ async def delete_weapon_image_endpoint(
     if user.is_guest:
         raise HTTPException(status_code=403, detail="Goście nie mogą usuwać zdjęć")
     
-    gun = await GunService._get_single_gun(session, gun_id, user)
+    gun = GunService._get_single_gun(session, gun_id, user)
     
     if gun.user_id != user.user_id and user.role != UserRole.admin:
         raise HTTPException(status_code=403, detail="Brak uprawnień do tej broni")

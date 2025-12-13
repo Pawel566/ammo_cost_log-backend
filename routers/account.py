@@ -20,8 +20,8 @@ async def get_skill_level(
     session: Session = Depends(get_session),
     user: UserContext = Depends(get_current_user)
 ):
-    query = select(User).where(User.user_id == user.user_id)
-    user_record = await asyncio.to_thread(lambda: session.exec(query).first())
+    # Zapewnij, że użytkownik istnieje w bazie (automatycznie tworzy, jeśli nie istnieje)
+    user_record = await asyncio.to_thread(lambda: AccountService.ensure_user_exists(session, user))
     return {"skill_level": user_record.skill_level if user_record else "beginner"}
 
 
@@ -65,11 +65,8 @@ async def get_rank(
     session: Session = Depends(get_session),
     user: UserContext = Depends(get_current_user)
 ):
-    query = select(User).where(User.user_id == user.user_id)
-    user_record = await asyncio.to_thread(lambda: session.exec(query).first())
-    if not user_record:
-        from fastapi import HTTPException
-        raise HTTPException(status_code=404, detail="Użytkownik nie znaleziony")
+    # Zapewnij, że użytkownik istnieje w bazie (automatycznie tworzy, jeśli nie istnieje)
+    user_record = await asyncio.to_thread(lambda: AccountService.ensure_user_exists(session, user))
     
     if not hasattr(user_record, 'rank') or user_record.rank is None:
         user_record.rank = "Nowicjusz"

@@ -77,7 +77,17 @@ def _extract_role_from_jwt(token: str) -> UserRole:
     payload = _decode_jwt_payload(token)
     role_value = payload.get("role")
     if not role_value:
-        raise HTTPException(status_code=403, detail="Role claim missing from token")
+        raise HTTPException(status_code=401, detail="Role claim missing from token")
+    
+    if role_value == "authenticated":
+        app_role_value = payload.get("app_role")
+        if app_role_value:
+            try:
+                return UserRole(app_role_value)
+            except ValueError:
+                return UserRole.user
+        return UserRole.user
+    
     try:
         return UserRole(role_value)
     except ValueError:

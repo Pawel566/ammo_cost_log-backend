@@ -20,7 +20,7 @@ async def get_all_maintenance(
     user: UserContext = Depends(role_required([UserRole.guest, UserRole.user, UserRole.admin])),
     gun_id: Optional[str] = Query(default=None)
 ):
-    return await MaintenanceService.list_all(session, user, gun_id)
+    return MaintenanceService.list_all(session, user, gun_id)
 
 @router.get("/guns/{gun_id}/maintenance", response_model=List[MaintenanceRead])
 async def get_gun_maintenance(
@@ -28,14 +28,14 @@ async def get_gun_maintenance(
     session: Session = Depends(get_session),
     user: UserContext = Depends(role_required([UserRole.guest, UserRole.user, UserRole.admin]))
 ):
-    return await MaintenanceService.list_for_gun(session, user, gun_id)
+    return MaintenanceService.list_for_gun(session, user, gun_id)
 
 @router.get("/statistics", response_model=Dict[str, Any])
 async def get_maintenance_statistics(
     session: Session = Depends(get_session),
     user: UserContext = Depends(role_required([UserRole.guest, UserRole.user, UserRole.admin]))
 ):
-    return await MaintenanceService.get_statistics(session, user)
+    return MaintenanceService.get_statistics(session, user)
 
 @router.post("/guns/{gun_id}/maintenance", response_model=MaintenanceRead)
 async def add_maintenance(
@@ -44,7 +44,7 @@ async def add_maintenance(
     session: Session = Depends(get_session),
     user: UserContext = Depends(role_required([UserRole.guest, UserRole.user, UserRole.admin]))
 ):
-    return await MaintenanceService.create_maintenance(session, user, gun_id, maintenance_data.model_dump())
+    return MaintenanceService.create_maintenance(session, user, gun_id, maintenance_data.model_dump())
 
 @router.put("/maintenance/{maintenance_id}", response_model=MaintenanceRead)
 async def update_maintenance(
@@ -54,7 +54,7 @@ async def update_maintenance(
     user: UserContext = Depends(role_required([UserRole.guest, UserRole.user, UserRole.admin]))
 ):
     data_dict = maintenance_data.model_dump(exclude_none=True, by_alias=True)
-    return await MaintenanceService.update_maintenance(session, user, maintenance_id, data_dict)
+    return MaintenanceService.update_maintenance(session, user, maintenance_id, data_dict)
 
 @router.delete("/maintenance/{maintenance_id}")
 async def delete_maintenance(
@@ -62,7 +62,7 @@ async def delete_maintenance(
     session: Session = Depends(get_session),
     user: UserContext = Depends(role_required([UserRole.guest, UserRole.user, UserRole.admin]))
 ):
-    return await MaintenanceService.delete_maintenance(session, user, maintenance_id)
+    return MaintenanceService.delete_maintenance(session, user, maintenance_id)
 
 
 
