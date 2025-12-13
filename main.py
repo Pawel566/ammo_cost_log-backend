@@ -1,4 +1,4 @@
-from fastapi import FastAPI, Request, status
+from fastapi import FastAPI, Request, status, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from database import init_db
@@ -54,19 +54,14 @@ async def bad_request_error_handler(request: Request, exc: BadRequestError):
         content={"code": "BAD_REQUEST", "message": exc.detail}
     )
 
-@app.exception_handler(ValueError)
-async def value_error_handler(request: Request, exc: ValueError):
-    return JSONResponse(
-        status_code=status.HTTP_400_BAD_REQUEST,
-        content={"code": "BAD_REQUEST", "message": str(exc)}
-    )
-
 @app.exception_handler(Exception)
 async def generic_exception_handler(request: Request, exc: Exception):
+    if isinstance(exc, HTTPException):
+        raise exc
     logging.error(f"Unhandled exception: {exc}", exc_info=True)
     return JSONResponse(
         status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-        content={"code": "INTERNAL_ERROR", "message": "An internal error occurred"}
+        content={"code": "INTERNAL_ERROR", "message": "Internal server error"}
     )
 
 @app.on_event("startup")

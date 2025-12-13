@@ -1,13 +1,11 @@
-from fastapi import APIRouter, HTTPException, Depends, Header, Response
+from fastapi import APIRouter, HTTPException, Depends
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from pydantic import BaseModel
 from supabase import create_client, Client
 import asyncio
 from typing import Optional, Iterable, Union
-from uuid import uuid4
-from datetime import datetime
 from services.error_handler import ErrorHandler
-from services.user_context import UserContext, UserRole, calculate_guest_expiration
+from services.user_context import UserContext, UserRole, get_user_context_pure, _get_supabase_client
 from settings import settings
 
 router = APIRouter(prefix="/auth", tags=["auth"])
@@ -46,8 +44,6 @@ class AuthResponse(BaseModel):
 
 class UserInfo(BaseModel):
     user_id: str
-    email: str
-    username: str
     role: UserRole
 
 class RefreshRequest(BaseModel):
@@ -65,70 +61,12 @@ def _resolve_role(metadata: Optional[dict]) -> UserRole:
         return UserRole.user
 
 
-async def _fetch_supabase_user(token: str) -> UserContext:
-    if not supabase:
-        raise HTTPException(status_code=503, detail="Authentication service not available")
-    try:
-        response = await asyncio.to_thread(supabase.auth.get_user, token)
-        if not response.user:
-            raise HTTPException(status_code=401, detail="Nieprawidłowy token")
-        user_metadata = response.user.user_metadata or {}
-        username = user_metadata.get("username", response.user.email.split("@")[0])
-        role = _resolve_role(user_metadata)
-        return UserContext(
-            user_id=response.user.id,
-            email=response.user.email,
-            username=username,
-            role=role
-        )
-    except HTTPException:
-        raise
-    except Exception as e:
-        raise ErrorHandler.handle_supabase_error(e, "get_current_user")
-
-
 async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(security)) -> UserContext:
     if not credentials:
         raise HTTPException(status_code=401, detail="Brak tokena uwierzytelniającego")
-    return await _fetch_supabase_user(credentials.credentials)
+    supabase_client = supabase or _get_supabase_client()
+    return await get_user_context_pure(credentials.credentials, supabase_client)
 
-
-async def get_user_context(
-    response: Response,
-    credentials: Optional[HTTPAuthorizationCredentials] = Depends(security),
-    guest_id: Optional[str] = Header(default=None, alias="X-Guest-Id"),
-    guest_id_expires_at: Optional[str] = Header(default=None, alias="X-Guest-Id-Expires-At")
-) -> UserContext:
-    if credentials:
-        return await _fetch_supabase_user(credentials.credentials)
-    expires_at = None
-    if guest_id and guest_id_expires_at:
-        try:
-            expires_at_str = guest_id_expires_at.replace('Z', '+00:00')
-            expires_at = datetime.fromisoformat(expires_at_str)
-            if expires_at.tzinfo:
-                expires_at = expires_at.replace(tzinfo=None)
-            if expires_at < datetime.utcnow():
-                guest_id = None
-                expires_at = None
-        except (ValueError, AttributeError):
-            guest_id = None
-            expires_at = None
-    if not guest_id:
-        guest_id = str(uuid4())
-        expires_at = calculate_guest_expiration()
-    else:
-        if not expires_at:
-            expires_at = calculate_guest_expiration()
-    response.headers["X-Guest-Id"] = guest_id
-    response.headers["X-Guest-Id-Expires-At"] = expires_at.isoformat()
-    return UserContext(
-        user_id=guest_id,
-        role=UserRole.guest,
-        is_guest=True,
-        guest_session_id=guest_id,
-        expires_at=expires_at
-    )
 
 def role_required(allowed_roles: Iterable[Union[UserRole, str]]):
     normalized = set()
@@ -137,7 +75,11 @@ def role_required(allowed_roles: Iterable[Union[UserRole, str]]):
             normalized.add(role)
         else:
             normalized.add(UserRole(role))
-    async def dependency(user: UserContext = Depends(get_user_context)) -> UserContext:
+    async def dependency(credentials: HTTPAuthorizationCredentials = Depends(security)) -> UserContext:
+        if not credentials:
+            raise HTTPException(status_code=401, detail="Brak tokena uwierzytelniającego")
+        supabase_client = supabase or _get_supabase_client()
+        user = await get_user_context_pure(credentials.credentials, supabase_client)
         if user.role not in normalized:
             raise HTTPException(status_code=403, detail="Brak uprawnień do wykonania tej operacji")
         return user
@@ -229,8 +171,6 @@ async def get_me(current_user: UserContext = Depends(get_current_user)):
     """Get current user info"""
     return UserInfo(
         user_id=current_user.user_id,
-        email=current_user.email or "",
-        username=current_user.username or "",
         role=current_user.role
     )
 
