@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, Query, UploadFile, File, HTTPException
 from sqlmodel import Session
-from typing import Optional
+from typing import Optional, Dict
 from schemas.gun import GunCreate, GunRead
 from schemas.pagination import PaginatedResponse
 from models import GunUpdate
@@ -8,7 +8,7 @@ from database import get_session
 from routers.auth import role_required
 from services.gun_service import GunService
 from services.user_context import UserContext, UserRole
-from services.exceptions import NotFoundError, BadRequestError
+from services.exceptions import BadRequestError
 import asyncio
 
 # Import Supabase service functions only when needed to avoid import errors
@@ -37,6 +37,14 @@ async def get_guns(
 ):
     return await GunService.get_all_guns(session, user, limit, offset, search)
 
+@router.get("/{gun_id}", response_model=GunRead)
+async def get_gun(
+    gun_id: str,
+    session: Session = Depends(get_session),
+    user: UserContext = Depends(role_required([UserRole.guest, UserRole.user, UserRole.admin]))
+):
+    return await GunService.get_gun_by_id(session, gun_id, user)
+
 @router.post("", response_model=GunRead)
 async def add_gun(
     gun_data: GunCreate,
@@ -45,7 +53,24 @@ async def add_gun(
 ):
     return await GunService.create_gun(session, gun_data, user)
 
-@router.post("/{gun_id}/upload-image")
+@router.put("/{gun_id}", response_model=GunRead)
+async def update_gun(
+    gun_id: str,
+    gun_data: GunUpdate,
+    session: Session = Depends(get_session),
+    user: UserContext = Depends(role_required([UserRole.guest, UserRole.user, UserRole.admin]))
+):
+    return await GunService.update_gun(session, gun_id, gun_data, user)
+
+@router.delete("/{gun_id}", response_model=Dict[str, str])
+async def delete_gun(
+    gun_id: str,
+    session: Session = Depends(get_session),
+    user: UserContext = Depends(role_required([UserRole.guest, UserRole.user, UserRole.admin]))
+):
+    return await GunService.delete_gun(session, gun_id, user)
+
+@router.post("/{gun_id}/image")
 async def upload_weapon_image_endpoint(
     gun_id: str,
     file: UploadFile = File(...),
@@ -120,31 +145,6 @@ async def get_weapon_image(
         # Jeśli nie można pobrać broni, zwróć null zamiast błędu
         print(f"Warning: Could not get weapon image: {e}")
         return {"url": None}
-
-@router.get("/{gun_id}", response_model=GunRead)
-async def get_gun(
-    gun_id: str,
-    session: Session = Depends(get_session),
-    user: UserContext = Depends(role_required([UserRole.guest, UserRole.user, UserRole.admin]))
-):
-    return await GunService.get_gun_by_id(session, gun_id, user)
-
-@router.put("/{gun_id}", response_model=GunRead)
-async def update_gun(
-    gun_id: str,
-    gun_data: GunUpdate,
-    session: Session = Depends(get_session),
-    user: UserContext = Depends(role_required([UserRole.guest, UserRole.user, UserRole.admin]))
-):
-    return await GunService.update_gun(session, gun_id, gun_data, user)
-
-@router.delete("/{gun_id}")
-async def delete_gun(
-    gun_id: str,
-    session: Session = Depends(get_session),
-    user: UserContext = Depends(role_required([UserRole.guest, UserRole.user, UserRole.admin]))
-):
-    return await GunService.delete_gun(session, gun_id, user)
 
 @router.delete("/{gun_id}/image")
 async def delete_weapon_image_endpoint(
