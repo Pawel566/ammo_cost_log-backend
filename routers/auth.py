@@ -53,7 +53,7 @@ class ForgotPasswordRequest(BaseModel):
     email: str
 
 class ResetPasswordRequest(BaseModel):
-    access_token: str  # Access token from recovery session (frontend exchanges token for session)
+    token: str  # Recovery token from URL (hash token from Supabase email)
     password: str
 
 def _resolve_role(metadata: Optional[dict]) -> UserRole:
@@ -223,54 +223,56 @@ async def forgot_password(request: ForgotPasswordRequest):
 
 @router.post("/reset-password")
 async def reset_password(request: ResetPasswordRequest):
-    """Reset password using access token from recovery session"""
+    """Reset password using recovery token from URL"""
     if not supabase:
         raise HTTPException(status_code=503, detail="Authentication service not available")
     
     try:
-        # Frontend should exchange recovery token for session first
-        # Then send the access_token from that session here
-        # We use the access_token to get user info and update password
+        # Supabase recovery tokens are in the format: access_token#refresh_token
+        # We need to extract the access_token and verify it
+        # The token from URL hash is the full recovery token
         
-        # Create a temporary client with the access_token
+        # Try to verify the token by exchanging it for a session
+        # Supabase recovery tokens need to be exchanged for a session first
         temp_client = create_client(SUPABASE_URL, SUPABASE_KEY)
         
-        # Get user from access_token to verify it's valid
-        user_response = await asyncio.to_thread(
-            temp_client.auth.get_user,
-            request.access_token
-        )
+        # Parse the token - Supabase recovery tokens can be in format: access_token#refresh_token
+        # or just access_token
+        token_parts = request.token.split('#')
+        access_token = token_parts[0]
+        refresh_token = token_parts[1] if len(token_parts) > 1 else None
         
-        if not user_response.user:
-            raise HTTPException(status_code=401, detail="Nieprawidłowy token resetowania hasła")
+        # Try to set session with the recovery token
+        session_data = {"access_token": access_token}
+        if refresh_token:
+            session_data["refresh_token"] = refresh_token
         
-        # Use service_role_key if available for admin operations
-        # Otherwise, use the access_token in a session
-        if settings.supabase_service_role_key:
-            # Use admin client for password reset
-            admin_client = create_client(SUPABASE_URL, settings.supabase_service_role_key)
-            admin_response = await asyncio.to_thread(
-                admin_client.auth.admin.update_user_by_id,
-                user_response.user.id,
-                {"password": request.password}
-            )
-            if admin_response.user:
-                return {"message": "Hasło zostało pomyślnie zresetowane"}
-            else:
-                raise HTTPException(status_code=400, detail="Nie udało się zresetować hasła")
-        else:
-            # Fallback: use access_token in session
-            # Note: This requires the token to be from a valid recovery session
+        try:
             session_response = await asyncio.to_thread(
                 temp_client.auth.set_session,
-                {
-                    "access_token": request.access_token,
-                    "refresh_token": ""  # Not needed for password reset
-                }
+                session_data
             )
             
-            if session_response.session:
-                # Update password using the session
+            if not session_response.session:
+                raise HTTPException(status_code=401, detail="Nieprawidłowy token resetowania hasła")
+            
+            # Get user from session
+            user_id = session_response.session.user.id
+            
+            # Use service_role_key if available for admin operations (preferred)
+            if settings.supabase_service_role_key:
+                admin_client = create_client(SUPABASE_URL, settings.supabase_service_role_key)
+                admin_response = await asyncio.to_thread(
+                    admin_client.auth.admin.update_user_by_id,
+                    user_id,
+                    {"password": request.password}
+                )
+                if admin_response.user:
+                    return {"message": "Hasło zostało pomyślnie zresetowane"}
+                else:
+                    raise HTTPException(status_code=400, detail="Nie udało się zresetować hasła")
+            else:
+                # Fallback: use the session to update password
                 update_response = await asyncio.to_thread(
                     temp_client.auth.update_user,
                     {"password": request.password}
@@ -280,8 +282,12 @@ async def reset_password(request: ResetPasswordRequest):
                     return {"message": "Hasło zostało pomyślnie zresetowane"}
                 else:
                     raise HTTPException(status_code=400, detail="Nie udało się zresetować hasła")
-            else:
-                raise HTTPException(status_code=401, detail="Nie udało się utworzyć sesji z tokenem")
+        except Exception as session_error:
+            # If setting session fails, the token is invalid
+            raise HTTPException(
+                status_code=401,
+                detail="Nieprawidłowy lub wygasły token resetowania hasła. Poproś o nowy link."
+            )
     except HTTPException:
         raise
     except Exception as e:
